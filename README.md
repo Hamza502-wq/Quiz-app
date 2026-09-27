@@ -46,13 +46,16 @@ cd apps/rider_app && flutter run
 # Physical phone: flutter run --dart-define=API_URL=http://<your-computer-LAN-IP>:4000
 ```
 
-Or run the API, database and both dashboards with Docker:
+Or run the API, database and both dashboards with Docker (only Docker Desktop needed):
 
 ```bash
-cp .env.example .env            # set JWT_ACCESS_SECRET and OTP_SECRET
-docker compose up --build
-(cd backend && DATABASE_URL=postgresql://doorstep:doorstep@localhost:5432/doorstep npm run db:seed)
+cp .env.example .env            # set JWT_ACCESS_SECRET and OTP_SECRET (any random strings of 32+ characters)
+docker compose up --build -d
+docker compose run --rm seed    # sample data; safe to run again
 ```
+
+On Windows PowerShell, use `copy .env.example .env`, and for local testing generate each secret with
+`-join ((1..32) | % { '{0:x2}' -f (Get-Random -Maximum 256) })`.
 
 ### Seeded test accounts
 
