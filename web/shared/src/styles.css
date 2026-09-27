@@ -1,0 +1,49 @@
+/* DoorStep Zimbabwe design tokens (Tailwind v4 theme). Imported by each dashboard's globals.css. */
+@theme {
+  --color-brand: #ff7a00;
+  --color-brand-dark: #e56d00;
+  --color-brand-light: #fff1e5;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #4a4a4a;
+  --color-muted: #7a7a7a;
+  --color-line: #ececec;
+  --color-surface: #ffffff;
+  --color-canvas: #f7f7f8;
+  --color-alert: #e01e1e;
+  --color-alert-light: #fde8e8;
+  --color-flag-green: #319b42;
+  --color-flag-yellow: #ffd200;
+  --color-flag-red: #e01e1e;
+  --color-success: #1f9d55;
+  --color-success-light: #e6f6ec;
+  --color-warning: #b7791f;
+  --color-warning-light: #fdf4e3;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 24px rgb(0 0 0 / 0.05);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}

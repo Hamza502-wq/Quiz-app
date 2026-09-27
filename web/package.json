@@ -1,0 +1,15 @@
+{
+  "name": "doorstep-web",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "vendor-dashboard",
+    "admin-panel"
+  ],
+  "scripts": {
+    "dev:vendor": "npm run dev -w @doorstep/vendor-dashboard",
+    "dev:admin": "npm run dev -w @doorstep/admin-panel",
+    "build": "npm run build -w @doorstep/vendor-dashboard && npm run build -w @doorstep/admin-panel",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
