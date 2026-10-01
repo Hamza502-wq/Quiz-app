@@ -4,12 +4,14 @@
   "workspaces": [
     "shared",
     "vendor-dashboard",
-    "admin-panel"
+    "admin-panel",
+    "customer-web"
   ],
   "scripts": {
     "dev:vendor": "npm run dev -w @doorstep/vendor-dashboard",
     "dev:admin": "npm run dev -w @doorstep/admin-panel",
-    "build": "npm run build -w @doorstep/vendor-dashboard && npm run build -w @doorstep/admin-panel",
+    "dev:customer": "npm run dev -w @doorstep/customer-web",
+    "build": "npm run build -w @doorstep/vendor-dashboard && npm run build -w @doorstep/admin-panel && npm run build -w @doorstep/customer-web",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

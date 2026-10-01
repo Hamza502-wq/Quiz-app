@@ -12,6 +12,7 @@ On-demand delivery for Zimbabwe — food, groceries, pharmacy and parcels — wi
 | **Customer app** | Flutter (Android first, iOS-ready) | [`apps/customer_app/`](apps/customer_app) |
 | **Rider app** | Flutter (Android first, iOS-ready) | [`apps/rider_app/`](apps/rider_app) |
 | Shared Flutter code | API client, auth, models, theme, widgets | [`packages/doorstep_core/`](packages/doorstep_core) |
+| **Customer website** | Next.js 16 · TypeScript · Tailwind 4 | [`web/customer-web/`](web/customer-web) |
 | **Vendor dashboard** | Next.js 16 · TypeScript · Tailwind 4 | [`web/vendor-dashboard/`](web/vendor-dashboard) |
 | **Admin panel** | Next.js 16 · TypeScript · Tailwind 4 | [`web/admin-panel/`](web/admin-panel) |
 | Shared web code | API client, auth, UI kit, maps | [`web/shared/`](web/shared) |
@@ -32,11 +33,13 @@ npx prisma migrate deploy       # create tables
 npm run db:seed                 # sample vendors, products, riders, customers & two weeks of orders
 npm run dev                     # http://localhost:4000 · Swagger at http://localhost:4000/api/docs
 
-# 2. Web dashboards (in another terminal)
+# 2. Website and dashboards (in another terminal)
 cd web
 npm install
+cp customer-web/.env.example customer-web/.env.local
 cp vendor-dashboard/.env.example vendor-dashboard/.env.local
 cp admin-panel/.env.example admin-panel/.env.local
+npm run dev:customer            # customer website · http://localhost:3002
 npm run dev:vendor              # http://localhost:3000
 npm run dev:admin               # http://localhost:3001
 
@@ -46,7 +49,7 @@ cd apps/rider_app && flutter run
 # Physical phone: flutter run --dart-define=API_URL=http://<your-computer-LAN-IP>:4000
 ```
 
-Or run the API, database and both dashboards with Docker (only Docker Desktop needed):
+Or run the API, database, customer website and both dashboards with Docker (only Docker Desktop needed). The website is then at http://localhost:3002:
 
 ```bash
 cp .env.example .env            # set JWT_ACCESS_SECRET and OTP_SECRET (any random strings of 32+ characters)
@@ -131,7 +134,7 @@ Every secret comes from environment variables; nothing is hard-coded.
 | Where | File | Key settings |
 | --- | --- | --- |
 | API | `backend/.env` ([example](backend/.env.example)) | `DATABASE_URL`, `JWT_ACCESS_SECRET`, `OTP_SECRET`, `PUBLIC_BASE_URL`, `CORS_ORIGINS`, `SMS_PROVIDER`/`TWILIO_*`, `FCM_*`, `PAYNOW_*`, `GOOGLE_MAPS_SERVER_KEY`, `OTP_DEV_ECHO`, `PAYMENTS_MOCK` |
-| Dashboards | `web/*/.env.local` ([example](web/vendor-dashboard/.env.example)) | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` |
+| Website & dashboards | `web/*/.env.local` ([example](web/vendor-dashboard/.env.example)) | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` |
 | Mobile apps | `--dart-define` or `--dart-define-from-file=config/dev.json` ([example](apps/customer_app/config/dev.example.json)) | `API_URL`, `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID` |
 | Android Maps key | `apps/*/android/local.properties` | `MAPS_API_KEY=...` (or a Gradle property / env var) |
 | iOS Maps key | `apps/*/ios/Flutter/Secrets.xcconfig` | `GOOGLE_MAPS_API_KEY = ...` |
@@ -146,6 +149,8 @@ Platform settings (commission, delivery fees, rider pay, parcel surcharges, cash
 ## Features by app
 
 **Customer app** — SMS sign-in · browse by category (food, groceries, pharmacy, parcels) with search, "open now" filter and sorting by rating/distance/fee · live open/closed status and opening hours · menus with stock-aware ordering · single-store cart that survives restarts · saved addresses with **map pin-drop + landmark description** · checkout with USD/ZiG toggle, tip, EcoCash/OneMoney/card/cash · Paynow payment screen with retry · **live tracking map** with rider position, ETA, status timeline and delivery PIN · call/chat the rider · order history, reorder, ratings & reviews, post-delivery tipping, dispute reporting · parcel sending · notification inbox (push, SMS/WhatsApp fallback preference) · **low-data mode** (thumbnails, lite maps, slower polling).
+
+**Customer website** — the customer app in the browser, sharing the same API and accounts: SMS sign-in (accounts are created on first verification) · browse stores by category with search, "open now" and sorting, plus delivery fee and time for your location (browser geolocation, saved address or map pin) · store pages with menu search, opening hours and reviews · single-store cart saved in the browser · checkout with saved addresses (map pin + landmark), USD/ZiG, tip and EcoCash/OneMoney/card/cash · Paynow payment status with retry · **live order tracking** over Socket.IO with status timeline, rider map and ETA, delivery PIN and rider chat · cancel, rate, tip, report a problem, order again · parcel sending · profile, preferences and saved addresses · responsive down to phone width.
 
 **Rider app** — registration with national ID, licence and vehicle photos (private uploads) · approval status screen with resubmission · online/offline toggle with background location (Android foreground service) · delivery request sheet with countdown, earnings and cash-to-collect · navigation hand-off to Google Maps · call/chat customer · picked up → on the way → delivered · **proof of delivery by customer PIN or photo** · wallet with earnings, tips, bonuses, cash owed vs limit and ledger · payout requests to EcoCash/OneMoney/bank · delivery history · low-data mode.
 
@@ -171,7 +176,7 @@ Interactive Swagger UI at **`/api/docs`** (OpenAPI JSON at `/api/docs.json`), ge
 ```bash
 cd backend && npm test                     # 42 unit, end-to-end and Socket.IO tests (needs a *test* PostgreSQL database)
 cd backend && npm run typecheck && npm run build
-cd web && npm run build                    # type-checks and builds both dashboards
+cd web && npm run build                    # type-checks and builds the website and both dashboards
 cd packages/doorstep_core && flutter analyze && flutter test
 cd apps/customer_app && flutter analyze && flutter test
 cd apps/rider_app && flutter analyze && flutter test
@@ -185,7 +190,7 @@ Backend tests default to `postgresql://postgres:postgres@localhost:5432/doorstep
 
 * `NODE_ENV=production`, strong unique secrets, `OTP_DEV_ECHO=false`, `PAYMENTS_MOCK=false`.
 * `PUBLIC_BASE_URL` must be the public HTTPS URL of the API so Paynow can reach `/api/v1/payments/paynow/result`.
-* Configure `SMS_PROVIDER=twilio` (SMS + WhatsApp sender), FCM service-account credentials, Paynow USD/ZWG integrations, and restricted Google Maps keys (server key for the API, browser key for dashboards, Android/iOS keys for apps).
+* Configure `SMS_PROVIDER=twilio` (SMS + WhatsApp sender), FCM service-account credentials, Paynow USD/ZWG integrations, and restricted Google Maps keys (server key for the API, browser key for the website and dashboards, Android/iOS keys for apps).
 * Run background jobs on exactly one API instance (`ENABLE_JOBS=true` there, `false` elsewhere). Socket.IO and the in-memory PIN attempt limiter assume a single instance — add the Socket.IO Redis adapter before scaling out.
 * Uploaded images are stored on local disk (`UPLOAD_DIR`); mount a persistent volume or move to object storage. ID documents and delivery photos are private and served only to admins, their owner, and (for proof photos) the order's customer.
 * Dashboards keep tokens in `localStorage`; serve them over HTTPS with a strict CSP.

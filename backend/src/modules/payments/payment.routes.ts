@@ -46,8 +46,8 @@ defineRoute(paymentRouter, {
     const paid = payment?.status === 'PAID';
     const title = paid ? 'Payment received' : 'Payment submitted';
     const message = paid
-      ? 'Thank you! Your payment was successful. You can return to the DoorStep app.'
-      : 'We are confirming your payment with Paynow. Return to the DoorStep app — your order will update automatically.';
+      ? 'Thank you! Your payment was successful. You can close this page and go back to DoorStep.'
+      : 'We are confirming your payment with Paynow. Go back to DoorStep — your order will update automatically.';
     res
       .status(200)
       .type('html')

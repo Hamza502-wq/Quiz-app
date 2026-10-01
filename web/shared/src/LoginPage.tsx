@@ -7,23 +7,30 @@ import { FlagStripe, Logo } from './brand';
 import { Button, Field, InlineError, Input, cn } from './ui';
 import type { Profile } from './types';
 
+type LoginMode = 'otp' | 'password';
+
 /**
  * Shared sign-in screen: phone + password, or phone + SMS code (OTP).
- * `allowSignup` lets new users create an account via OTP (vendors).
+ * `allowSignup` lets new users create an account via OTP; `signupNote` explains it.
+ * `modes` limits the sign-in methods offered (customers only use SMS codes).
  */
 export function LoginPage({
   title,
   subtitle,
   onSuccess,
   allowSignup = false,
+  signupNote = 'New to DoorStep? Sign in with an SMS code to create your store.',
+  modes = ['otp', 'password'],
 }: {
   title: string;
   subtitle: string;
   onSuccess: (user: Profile) => void;
   allowSignup?: boolean;
+  signupNote?: string;
+  modes?: LoginMode[];
 }) {
   const { requestOtp, verifyOtp, loginWithPassword } = useAuth();
-  const [mode, setMode] = useState<'otp' | 'password'>('otp');
+  const [mode, setMode] = useState<LoginMode>(modes[0] ?? 'otp');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -69,29 +76,31 @@ export function LoginPage({
           <FlagStripe className="mt-4" />
         </div>
         <div className="rounded-2xl border border-line bg-white p-6 shadow-card">
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-canvas p-1">
-            {(
-              [
-                ['otp', 'SMS code', MessageSquareText],
-                ['password', 'Password', KeyRound],
-              ] as const
-            ).map(([value, label, Icon]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setMode(value);
-                  setError(null);
-                }}
-                className={cn(
-                  'flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold',
-                  mode === value ? 'bg-white text-brand shadow-sm' : 'text-muted',
-                )}
-              >
-                <Icon className="h-4 w-4" /> {label}
-              </button>
-            ))}
-          </div>
+          {modes.length > 1 ? (
+            <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-canvas p-1">
+              {(
+                [
+                  ['otp', 'SMS code', MessageSquareText],
+                  ['password', 'Password', KeyRound],
+                ] as const
+              ).filter(([value]) => modes.includes(value)).map(([value, label, Icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setMode(value);
+                    setError(null);
+                  }}
+                  className={cn(
+                    'flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold',
+                    mode === value ? 'bg-white text-brand shadow-sm' : 'text-muted',
+                  )}
+                >
+                  <Icon className="h-4 w-4" /> {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <form onSubmit={submit} className="space-y-4">
             <Field label="Phone number" hint="e.g. 0771 234 567">
@@ -149,7 +158,7 @@ export function LoginPage({
             ) : null}
           </form>
           {allowSignup ? (
-            <p className="mt-5 text-center text-xs text-muted">New to DoorStep? Sign in with an SMS code to create your store.</p>
+            <p className="mt-5 text-center text-xs text-muted">{signupNote}</p>
           ) : null}
         </div>
       </div>

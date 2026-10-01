@@ -22,7 +22,7 @@ const schema = z.object({
 
   // Public URL where this API is reachable (used for uploads and Paynow callbacks)
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:4000'),
-  CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001'),
+  CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3001,http://localhost:3002'),
 
   // Auth
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),

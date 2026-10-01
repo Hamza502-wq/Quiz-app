@@ -1,10 +1,10 @@
-# DoorStep Zimbabwe — local stack: PostgreSQL, API, vendor dashboard, admin panel.
+# DoorStep Zimbabwe — local stack: PostgreSQL, API, customer website, vendor dashboard, admin panel.
 #
 #   cp .env.example .env        # then set the secrets
 #   docker compose up --build -d
 #   docker compose run --rm seed   # sample data (safe to re-run)
 #
-# API: http://localhost:4000 (docs at /api/docs) · Vendor: http://localhost:3000 · Admin: http://localhost:3001
+# API: http://localhost:4000 (docs at /api/docs) · Website: http://localhost:3002 · Vendor: http://localhost:3000 · Admin: http://localhost:3001
 services:
   postgres:
     image: postgres:16-alpine
@@ -37,7 +37,7 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://doorstep:doorstep@postgres:5432/doorstep?schema=public
       PUBLIC_BASE_URL: ${PUBLIC_API_URL:-http://localhost:4000}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       OTP_SECRET: ${OTP_SECRET:?Set OTP_SECRET in .env}
       OTP_DEV_ECHO: ${OTP_DEV_ECHO:-true}
@@ -102,6 +102,20 @@ services:
       - api
     ports:
       - "3001:3000"
+
+  customer:
+    build:
+      context: ./web
+      args:
+        APP: customer-web
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${GOOGLE_MAPS_MAP_ID:-DEMO_MAP_ID}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3002:3000"
 
 volumes:
   pgdata:

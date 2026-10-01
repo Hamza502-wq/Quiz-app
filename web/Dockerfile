@@ -1,12 +1,14 @@
-# DoorStep web dashboards. Build one app per image:
+# DoorStep web apps (customer website, vendor dashboard, admin panel). Build one app per image:
 #   docker build --build-arg APP=vendor-dashboard --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t doorstep-vendor .
 #   docker build --build-arg APP=admin-panel      --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t doorstep-admin .
+#   docker build --build-arg APP=customer-web     --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t doorstep-web .
 FROM node:22-bookworm-slim AS build
 WORKDIR /web
 COPY package.json package-lock.json ./
 COPY shared/package.json shared/
 COPY vendor-dashboard/package.json vendor-dashboard/
 COPY admin-panel/package.json admin-panel/
+COPY customer-web/package.json customer-web/
 RUN npm ci
 COPY . .
 ARG APP=vendor-dashboard

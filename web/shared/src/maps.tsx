@@ -19,13 +19,17 @@ export function MapsProvider({ children }: { children: ReactNode }) {
   return <APIProvider apiKey={config.mapsApiKey}>{children}</APIProvider>;
 }
 
-export function MapNotConfigured({ className }: { className?: string }) {
+export function MapNotConfigured({ className, message }: { className?: string; message?: string }) {
   return (
     <div className={`flex flex-col items-center justify-center gap-2 rounded-2xl bg-canvas p-6 text-center text-sm text-muted ${className ?? ''}`}>
       <MapPinned className="h-8 w-8 text-brand" aria-hidden />
-      <p>
-        Maps are disabled. Set <code className="rounded bg-white px-1">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to enable Google Maps.
-      </p>
+      {message ? (
+        <p>{message}</p>
+      ) : (
+        <p>
+          Maps are disabled. Set <code className="rounded bg-white px-1">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to enable Google Maps.
+        </p>
+      )}
     </div>
   );
 }
@@ -51,16 +55,19 @@ function Recenter({ center }: { center: LatLng }) {
 
 /**
  * Pin-drop location picker: click the map or drag the pin. Falls back to
- * latitude/longitude inputs when Google Maps is not configured.
+ * latitude/longitude inputs when Google Maps is not configured
+ * (`unavailableMessage` replaces the developer hint on public sites).
  */
 export function MapPicker({
   value,
   onChange,
   height = 320,
+  unavailableMessage,
 }: {
   value: LatLng | null;
   onChange: (value: LatLng) => void;
   height?: number;
+  unavailableMessage?: string;
 }) {
   const [recenterTo, setRecenterTo] = useState<LatLng | null>(null);
   const position = value ?? config.defaultCenter;
@@ -97,8 +104,11 @@ export function MapPicker({
   if (!mapsEnabled) {
     return (
       <div className="space-y-3">
-        <MapNotConfigured />
+        <MapNotConfigured message={unavailableMessage} />
         {coordinateInputs}
+        <button type="button" className="text-xs font-semibold text-brand hover:underline" onClick={useMyLocation}>
+          Use my location
+        </button>
       </div>
     );
   }
