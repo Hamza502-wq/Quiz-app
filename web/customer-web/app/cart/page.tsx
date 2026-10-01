@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { LoadingBlock, PageHeader, useApi } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
+import { storeHref } from '@/lib/routes';
 import type { VendorMenu } from '@/lib/types';
 import { CartPanel } from '@/components/CartPanel';
 
@@ -28,7 +29,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
-      <Link href={cart.vendorSlug ? `/store/${cart.vendorSlug}` : '/'} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+      <Link href={cart.vendorSlug ? storeHref(cart.vendorSlug) : '/'} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
         <ArrowLeft className="h-4 w-4" aria-hidden /> {cart.vendorSlug ? 'Back to the store' : 'Browse stores'}
       </Link>
       <PageHeader title="Your cart" />

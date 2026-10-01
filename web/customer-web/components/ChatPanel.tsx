@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Send } from 'lucide-react';
-import { Button, InlineError, Input, Spinner, api, cn, formatTime, useApi, useSocketEvent } from '@doorstep/web-shared';
+import { Button, InlineError, Input, Spinner, api, cn, formatTime, useApi, useInterval, useSocket, useSocketEvent } from '@doorstep/web-shared';
 import type { ChatMessage } from '@/lib/types';
 
 /** Customer ↔ rider chat for one order, live over Socket.IO. */
@@ -12,7 +12,10 @@ export function ChatPanel({ orderId, canSend }: { orderId: string; canSend: bool
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const { setData } = messages;
+  const { setData, reload } = messages;
+  const { connected } = useSocket();
+  // Without a live connection (or in the demo), check for new messages every few seconds.
+  useInterval(() => void reload(), canSend && !connected ? 4000 : null);
 
   useSocketEvent<ChatMessage>('chat:message', (m) => {
     if (m.orderId !== orderId) return;

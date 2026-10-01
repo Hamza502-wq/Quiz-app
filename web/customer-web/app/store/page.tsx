@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, Bike, Clock, Info, MapPin, Minus, Plus, Search, ShoppingBag } from 'lucide-react';
 import {
   Badge,
@@ -29,29 +29,37 @@ import { CartPanel } from '@/components/CartPanel';
 import { RatingPill, Stars, StoreCover, StoreLogo } from '@/components/StoreVisuals';
 
 export default function StorePage() {
-  const { slug } = useParams<{ slug: string }>();
+  return (
+    <Suspense fallback={<LoadingBlock label="Loading the menu…" />}>
+      <StoreLoader />
+    </Suspense>
+  );
+}
+
+function StoreLoader() {
+  const slug = useSearchParams().get('slug') ?? '';
   const { deliverTo, ready } = useDeliverTo();
-  const menu = useApi<VendorMenu>(ready ? `/vendors/${encodeURIComponent(slug)}` : null, {
+  const menu = useApi<VendorMenu>(ready && slug ? `/vendors/${encodeURIComponent(slug)}` : null, {
     lat: deliverTo?.lat,
     lng: deliverTo?.lng,
   });
 
+  if (!slug || (menu.error && !menu.data && menu.error.status === 404)) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-16">
+        <EmptyState
+          title="Store not found"
+          message="This store may have closed down or changed its link."
+          action={
+            <Link href="/" className="font-semibold text-brand hover:underline">
+              Browse stores
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
   if (menu.error && !menu.data) {
-    if (menu.error.status === 404) {
-      return (
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <EmptyState
-            title="Store not found"
-            message="This store may have closed down or changed its link."
-            action={
-              <Link href="/" className="font-semibold text-brand hover:underline">
-                Browse stores
-              </Link>
-            }
-          />
-        </div>
-      );
-    }
     return (
       <div className="mx-auto max-w-6xl px-4 py-16">
         <ErrorState message={menu.error.message} onRetry={() => void menu.reload()} />

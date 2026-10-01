@@ -8,14 +8,24 @@ import { FlagStripe, cn, useAuth } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
 import { DeliverToModal } from './DeliverToModal';
+import { DemoBanner } from './DemoBanner';
+import { DEMO_MODE } from '@/lib/demo/mode';
 
 /** Public storefront chrome: header with delivery location, cart and account; footer. */
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   // The sign-in page is a focused full-screen flow.
-  if (pathname === '/login') return <>{children}</>;
+  if (pathname === '/login') {
+    return (
+      <>
+        {DEMO_MODE ? <DemoBanner /> : null}
+        {children}
+      </>
+    );
+  }
   return (
     <div className="flex min-h-screen flex-col">
+      {DEMO_MODE ? <DemoBanner /> : null}
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
@@ -35,7 +45,9 @@ function SiteHeader() {
       href={href}
       className={cn(
         'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors',
-        pathname.startsWith(href) ? 'text-brand' : 'text-ink-soft hover:bg-canvas hover:text-ink',
+        pathname.startsWith(href) || (href === '/orders' && pathname === '/order')
+          ? 'text-brand'
+          : 'text-ink-soft hover:bg-canvas hover:text-ink',
       )}
     >
       <Icon className="h-4 w-4" aria-hidden />

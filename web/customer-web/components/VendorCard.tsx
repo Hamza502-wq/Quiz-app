@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Bike, Clock } from 'lucide-react';
 import { formatMoney } from '@doorstep/web-shared';
 import { distanceLabel, etaLabel } from '@/lib/format';
+import { storeHref } from '@/lib/routes';
 import type { VendorSummary } from '@/lib/types';
 import { RatingPill, StoreCover, StoreLogo } from './StoreVisuals';
 
@@ -9,7 +10,7 @@ export function VendorCard({ vendor }: { vendor: VendorSummary }) {
   const eta = vendor.etaMinutes ?? vendor.avgPrepMinutes;
   return (
     <Link
-      href={`/store/${vendor.slug}`}
+      href={storeHref(vendor.slug)}
       className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card transition-shadow hover:shadow-lg"
     >
       <StoreCover coverUrl={vendor.coverUrl} categorySlug={vendor.category?.slug} closed={!vendor.isOpen} className="h-36" />

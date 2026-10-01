@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MessageSquarePlus, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { Button, Input, cn, formatMoney } from '@doorstep/web-shared';
 import { MAX_QUANTITY, useCart, type CartLine } from '@/lib/cart';
+import { storeHref } from '@/lib/routes';
 
 /** Cart contents with quantity steppers and per-item notes. */
 export function CartPanel({
@@ -42,7 +43,7 @@ export function CartPanel({
         <div className="min-w-0">
           <p className="text-xs text-muted">Your order from</p>
           {cart.vendorSlug ? (
-            <Link href={`/store/${cart.vendorSlug}`} className="block truncate font-bold hover:text-brand">
+            <Link href={storeHref(cart.vendorSlug)} className="block truncate font-bold hover:text-brand">
               {cart.vendorName}
             </Link>
           ) : (

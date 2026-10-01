@@ -1,0 +1,15 @@
+# Netlify: publishes the customer website (web/customer-web) as a standalone demo.
+# It is a static export running on the in-browser demo API with sample stores and
+# simulated deliveries, so no backend is needed. To use the real API instead, deploy
+# the backend, then build with `npm run build -w @doorstep/customer-web` and
+# NEXT_PUBLIC_API_URL set (that build needs a Next.js server, not static hosting).
+[build]
+  base = "web"
+  command = "npm run build:demo -w @doorstep/customer-web"
+  publish = "customer-web/out"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # The export is plain static files, so Netlify's Next.js server runtime isn't needed.
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"

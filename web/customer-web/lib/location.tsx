@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { readJson, writeJson } from './storage';
+import { DEMO_MODE } from './demo/mode';
+import { DEMO_LOCATION } from './demo/data';
 
 const STORAGE_KEY = 'ds_web_deliver_to';
 
@@ -35,6 +37,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const saved = readJson<unknown>(STORAGE_KEY);
     if (isValid(saved)) setState({ ...saved, addressId: saved.addressId ?? null });
+    // The demo starts somewhere its sample stores deliver to.
+    else if (DEMO_MODE) setState({ ...DEMO_LOCATION, addressId: null });
     setReady(true);
   }, []);
 

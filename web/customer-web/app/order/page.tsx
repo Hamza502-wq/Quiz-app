@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Bike, KeyRound, MapPin, MessageCircle, Phone, RotateCcw, Star, Store, TriangleAlert } from 'lucide-react';
 import {
   Badge,
@@ -25,6 +25,7 @@ import {
   type LatLng,
 } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
+import { DEMO_MODE } from '@/lib/demo/mode';
 import { etaLabel, formatIn } from '@/lib/format';
 import type { CustomerOrder, PaymentInfo, ReorderResult, RiderLocationEvent, TrackingSnapshot } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
@@ -40,17 +41,19 @@ const RIDER_MOVING = ['PICKED_UP', 'ON_THE_WAY'];
 export default function OrderPage() {
   return (
     <RequireCustomer>
-      <OrderDetail />
+      <Suspense fallback={<LoadingBlock label="Loading your order…" />}>
+        <OrderDetail />
+      </Suspense>
     </RequireCustomer>
   );
 }
 
 function OrderDetail() {
-  const { id } = useParams<{ id: string }>();
-  const order = useApi<CustomerOrder>(`/orders/${id}`);
+  const id = useSearchParams().get('id') ?? '';
+  const order = useApi<CustomerOrder>(id ? `/orders/${encodeURIComponent(id)}` : null);
 
-  if (order.error && !order.data) {
-    if (order.error.status === 404 || order.error.status === 403) {
+  if (!id || (order.error && !order.data)) {
+    if (!id || order.error?.status === 404 || order.error?.status === 403) {
       return (
         <div className="mx-auto max-w-xl px-4 py-16">
           <EmptyState title="Order not found" message="Check the link, or find the order in your order history." action={<Link href="/orders" className="font-semibold text-brand hover:underline">Your orders</Link>} />
@@ -59,7 +62,7 @@ function OrderDetail() {
     }
     return (
       <div className="mx-auto max-w-xl px-4 py-16">
-        <ErrorState message={order.error.message} onRetry={() => void order.reload()} />
+        <ErrorState message={order.error?.message ?? 'Could not load the order'} onRetry={() => void order.reload()} />
       </div>
     );
   }
@@ -106,16 +109,20 @@ function OrderView({ order, setOrder, reload }: { order: CustomerOrder; setOrder
       const t = await api<TrackingSnapshot>(`/orders/${order.id}/tracking`);
       setEta(t.etaMinutes);
       if (t.rider?.location) setRiderPos({ lat: t.rider.location.lat, lng: t.rider.location.lng });
-      if (t.status !== order.status) void reload();
+      // Reload when the status changes or a rider is assigned.
+      if (t.status !== order.status || Boolean(t.rider) !== Boolean(order.rider)) void reload();
     } catch {
       // Keep the last known values.
     }
-  }, [order.id, order.status, reload]);
+  }, [order.id, order.status, order.rider, reload]);
   useEffect(() => {
     if (active && order.status !== 'PENDING_PAYMENT') void pollTracking();
     // Initial snapshot for this status.
   }, [active, order.status, pollTracking]);
-  useInterval(() => void pollTracking(), active && order.status !== 'PENDING_PAYMENT' ? (connected ? 60_000 : 20_000) : null);
+  useInterval(
+    () => void pollTracking(),
+    active && order.status !== 'PENDING_PAYMENT' ? (DEMO_MODE ? 3_000 : connected ? 60_000 : 20_000) : null,
+  );
 
   const orderAgain = async () => {
     setReordering(true);

@@ -26,6 +26,7 @@ import {
   type PaymentMethod,
 } from '@doorstep/web-shared';
 import { PAYMENT_OPTIONS } from '@/lib/payment';
+import { orderHref } from '@/lib/routes';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
 import { addressSummary, etaLabel, formatIn, looksLikePhone } from '@/lib/format';
@@ -138,7 +139,7 @@ function Checkout() {
       if (result.paymentError) toast(`Order created, but payment didn't start: ${result.paymentError}`, 'error');
       else if (method === 'CASH') toast('Order placed! The store has been notified.');
       else toast(isMobileMoney ? 'Check your phone to approve the payment.' : 'Complete your card payment to send the order.', 'info');
-      router.push(`/orders/${result.order.id}`);
+      router.push(orderHref(result.order.id));
     } catch (err) {
       setPlaceError(err instanceof Error ? err.message : 'Could not place your order');
       setPlacing(false);

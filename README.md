@@ -60,6 +60,8 @@ docker compose run --rm seed    # sample data; safe to run again
 On Windows PowerShell, use `copy .env.example .env`, and for local testing generate each secret with
 `-join ((1..32) | % { '{0:x2}' -f (Get-Random -Maximum 256) })`.
 
+**See the website without a backend:** the [`netlify.toml`](netlify.toml) publishes the customer website as a self-contained demo (sample stores, simulated deliveries, code `123456`). Connect the repository in Netlify, or run `npm run build:demo -w @doorstep/customer-web` in `web/` and drag `web/customer-web/out` onto [Netlify Drop](https://app.netlify.com/drop). Details in [`web/README.md`](web/README.md).
+
 ### Seeded test accounts
 
 With `OTP_DEV_ECHO=true` (development only) the SMS code is returned by the API and shown under the code field, so no SMS provider is needed.

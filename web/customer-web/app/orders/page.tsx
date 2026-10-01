@@ -17,6 +17,7 @@ import {
   type Paged,
 } from '@doorstep/web-shared';
 import { formatIn } from '@/lib/format';
+import { orderHref } from '@/lib/routes';
 import type { CustomerOrder } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { StoreLogo } from '@/components/StoreVisuals';
@@ -72,7 +73,7 @@ function Orders() {
           <ul className="space-y-3">
             {orders.data.items.map((o) => (
               <li key={o.id}>
-                <Link href={`/orders/${o.id}`} className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card hover:border-brand">
+                <Link href={orderHref(o.id)} className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card hover:border-brand">
                   {o.type === 'PARCEL' ? (
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-light text-brand">
                       <Package className="h-6 w-6" aria-hidden />

@@ -19,6 +19,8 @@ import {
 } from '@doorstep/web-shared';
 import { MAP_UNAVAILABLE_MESSAGE, currentPosition, useDeliverTo } from '@/lib/location';
 import { addressSummary } from '@/lib/format';
+import { DEMO_MODE } from '@/lib/demo/mode';
+import { DEMO_LOCATION } from '@/lib/demo/data';
 import type { Address } from '@/lib/types';
 
 /** Choose where to deliver: a saved address, the browser's location, or a pin on the map. */
@@ -110,6 +112,25 @@ export function DeliverToModal({ open, onClose }: { open: boolean; onClose: () =
               <span className="block text-xs text-muted">Good when GPS is off or you are ordering for someone else</span>
             </span>
           </button>
+
+          {DEMO_MODE ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDeliverTo({ ...DEMO_LOCATION, addressId: null });
+                onClose();
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-dashed border-brand p-3 text-left hover:bg-brand-light/40"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
+                <Home className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block font-semibold">Use the sample Harare location</span>
+                <span className="block text-xs text-muted">The demo stores deliver around Harare</span>
+              </span>
+            </button>
+          ) : null}
 
           <InlineError message={error} />
 

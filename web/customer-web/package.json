@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3002",
+    "dev:demo": "NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_API_URL=https://demo.doorstep.invalid next dev -p 3002",
     "build": "next build",
+    "build:demo": "STATIC_EXPORT=1 NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_API_URL=https://demo.doorstep.invalid next build",
     "start": "next start -p 3002",
     "typecheck": "tsc --noEmit"
   },

@@ -27,6 +27,7 @@ import {
 import { MAP_UNAVAILABLE_MESSAGE, useDeliverTo } from '@/lib/location';
 import { addressSummary, etaLabel, looksLikePhone } from '@/lib/format';
 import { PAYMENT_OPTIONS } from '@/lib/payment';
+import { orderHref } from '@/lib/routes';
 import type { Address, CheckoutResult, Quote } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { AddressFormModal } from '@/components/AddressFormModal';
@@ -161,7 +162,7 @@ function SendParcel() {
       });
       if (result.paymentError) toast(`Request created, but payment didn't start: ${result.paymentError}`, 'error');
       else toast(method === 'CASH' ? 'Parcel request sent! We are finding a rider.' : 'Complete the payment to confirm your parcel.', method === 'CASH' ? 'success' : 'info');
-      router.push(`/orders/${result.order.id}`);
+      router.push(orderHref(result.order.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send your request');
       setPlacing(false);
