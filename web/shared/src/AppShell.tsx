@@ -6,8 +6,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from './auth';
 import { AppIcon, FlagStripe, Logo } from './brand';
+import { config } from './config';
 import { SocketProvider, useSocket } from './socket';
 import { MapsProvider } from './maps';
+import { InstallAppButton } from './pwa';
+import { ChangePasswordButton } from './ChangePassword';
 import { Button, LoadingBlock, cn } from './ui';
 import type { RoleName } from './types';
 
@@ -51,6 +54,14 @@ export function AuthGate({ role, children }: { role: RoleName; children: ReactNo
 
 function ConnectionDot() {
   const { connected } = useSocket();
+  if (!config.realtime) {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-muted" title="This page refreshes automatically">
+        <span className="h-2 w-2 rounded-full bg-success" />
+        Auto-refresh
+      </span>
+    );
+  }
   return (
     <span className="flex items-center gap-1.5 text-xs text-muted" title={connected ? 'Live updates on' : 'Reconnecting…'}>
       <span className={cn('h-2 w-2 rounded-full', connected ? 'bg-success' : 'bg-warning animate-pulse')} />
@@ -106,6 +117,10 @@ export function AppShell({
       <div className="border-t border-line p-4">
         <p className="truncate text-sm font-semibold">{user?.name ?? 'Signed in'}</p>
         <p className="truncate text-xs text-muted">{user?.phone}</p>
+        <div className="mt-3 flex flex-col items-start gap-2 px-2 text-sm font-semibold text-brand">
+          <ChangePasswordButton />
+          <InstallAppButton appName={`DoorStep ${product}`} variant="link" />
+        </div>
         <Button variant="ghost" size="sm" className="mt-2 w-full justify-start px-2" icon={<LogOut className="h-4 w-4" />} onClick={() => void logout()}>
           Sign out
         </Button>

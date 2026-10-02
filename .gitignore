@@ -37,3 +37,7 @@ build/
 *.keystore
 app.*.symbols
 app.*.map.json
+
+# Netlify build output (scripts/netlify-build.sh)
+/site/
+/.netlify/

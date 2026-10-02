@@ -11,6 +11,7 @@ import {
   loginWithVerifiedPhone,
   logout,
   refreshSession,
+  registerWithPassword,
   setPassword,
 } from './auth.service';
 
@@ -57,10 +58,29 @@ defineRoute(authRouter, {
 
 defineRoute(authRouter, {
   method: 'post',
+  path: '/register',
+  basePath,
+  tags,
+  summary: 'Create an account with phone number and password',
+  description:
+    'For customers, riders and vendors. Fails with 409 when the number already has an account. Returns the same token pair as login.',
+  auth: 'public',
+  middleware: [loginLimiter],
+  body: z.object({
+    phone: phoneSchema,
+    password: passwordSchema,
+    name: z.string().trim().min(2, 'Enter your name').max(80),
+    role: z.enum(['CUSTOMER', 'RIDER', 'VENDOR']).default('CUSTOMER'),
+  }),
+  handler: ({ body, req }) => registerWithPassword(body.phone, body.password, body.name, body.role, clientInfo(req)),
+});
+
+defineRoute(authRouter, {
+  method: 'post',
   path: '/login',
   basePath,
   tags,
-  summary: 'Log in with phone number and password (vendor & admin dashboards)',
+  summary: 'Log in with phone number and password',
   auth: 'public',
   middleware: [loginLimiter],
   body: z.object({ phone: phoneSchema, password: z.string().min(1).max(128), role: roleSchema.optional() }),

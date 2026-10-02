@@ -8,7 +8,7 @@ import { HHMM, TIMEZONE } from '../../lib/time';
 import { slugify, randomCode } from '../../lib/random';
 import { imageUrl, moneyCents, optionalTrimmed, phoneSchema, trimmed } from '../../lib/validation';
 import { ensureRole } from '../auth/auth.service';
-import { notifyAdmins } from '../notifications/notification.service';
+import { notifyAdminsAsync } from '../notifications/notification.service';
 import { orderInclude, presentOrder, ACTIVE_STATUSES } from '../orders/order.presenter';
 import { getOrderForUser, transitionOrder } from '../orders/order.service';
 import { findZoneForPoint } from '../pricing/pricing.service';
@@ -103,7 +103,7 @@ defineRoute(vendorPortalRouter, {
       });
       return created;
     });
-    void notifyAdmins({
+    notifyAdminsAsync({
       type: 'VENDOR_PENDING',
       title: 'New store awaiting approval',
       body: `${vendor.name} signed up and needs review.`,

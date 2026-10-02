@@ -5,7 +5,7 @@ import { env } from '../../config/env';
 import { defineRoute } from '../../lib/route';
 import { prisma } from '../../lib/prisma';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
-import { ALLOWED_MIME, resolvePrivateFile, storeImage } from './upload.service';
+import { ALLOWED_MIME, readStoredFile, resolvePrivateFile, storeImage } from './upload.service';
 
 export const uploadRouter = Router();
 const basePath = '/api/v1/uploads';
@@ -68,6 +68,12 @@ defineRoute(uploadRouter, {
     if (!allowed) throw forbidden();
 
     res.setHeader('Cache-Control', 'private, max-age=3600');
+    if (env.UPLOAD_STORAGE === 'database') {
+      const stored = await readStoredFile(`private/${params.ownerId}/${params.file}`);
+      if (!stored) throw notFound('File');
+      res.type(stored.mimeType).send(stored.data);
+      return undefined;
+    }
     await new Promise<void>((resolve, reject) => {
       res.sendFile(filePath, (err) => {
         if (!err) return resolve();

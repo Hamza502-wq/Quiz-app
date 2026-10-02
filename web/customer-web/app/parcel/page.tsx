@@ -31,6 +31,7 @@ import { orderHref } from '@/lib/routes';
 import type { Address, CheckoutResult, Quote } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { AddressFormModal } from '@/components/AddressFormModal';
+import { SimulatedPaymentsNote } from '@/components/SimulatedPaymentsNote';
 
 type Size = 'SMALL' | 'MEDIUM' | 'LARGE';
 const SIZES: Array<{ value: Size; label: string; hint: string }> = [
@@ -295,6 +296,11 @@ function SendParcel() {
                 </button>
               ))}
             </div>
+            {method !== 'CASH' ? (
+              <div className="mt-4">
+                <SimulatedPaymentsNote />
+              </div>
+            ) : null}
             {isMobileMoney ? (
               <Field label="Number to charge">
                 <Input type="tel" value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} />

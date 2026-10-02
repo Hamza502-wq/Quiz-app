@@ -7,13 +7,16 @@ import { config } from './config';
 
 const SocketContext = createContext<{ socket: Socket | null; connected: boolean }>({ socket: null, connected: false });
 
-/** One authenticated Socket.IO connection per signed-in dashboard session. */
+/**
+ * One authenticated Socket.IO connection per signed-in session. With
+ * `config.realtime` off, `connected` stays false and screens poll instead.
+ */
 export function SocketProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !config.realtime) return;
     const s = io(config.apiUrl, {
       // Function form re-reads the (possibly refreshed) token on every reconnect.
       auth: (cb) => cb({ token: tokenStore.access }),

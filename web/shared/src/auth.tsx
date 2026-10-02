@@ -11,6 +11,8 @@ interface AuthContextValue {
   requestOtp: (phone: string) => Promise<{ expiresInSec: number; devCode?: string }>;
   verifyOtp: (phone: string, code: string, name?: string) => Promise<Profile>;
   loginWithPassword: (phone: string, password: string) => Promise<Profile>;
+  /** Creates a password account for this app's role (customer, rider or vendor). */
+  register: (input: { name: string; phone: string; password: string }) => Promise<Profile>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<Profile | null>;
 }
@@ -58,6 +60,8 @@ export function AuthProvider({ role, children }: { role: RoleName; children: Rea
         accept(await api<Session>('/auth/otp/verify', { body: { phone, code, role, name }, auth: false })),
       loginWithPassword: async (phone, password) =>
         accept(await api<Session>('/auth/login', { body: { phone, password, role: role === 'VENDOR' ? undefined : role }, auth: false })),
+      register: async ({ name, phone, password }) =>
+        accept(await api<Session>('/auth/register', { body: { name, phone, password, role }, auth: false })),
       logout: async () => {
         const refreshToken = tokenStore.refresh;
         tokenStore.clear();

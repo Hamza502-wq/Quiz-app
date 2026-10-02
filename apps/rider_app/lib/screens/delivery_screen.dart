@@ -99,19 +99,21 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               children: [
                 SizedBox(
                   height: 250,
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(target: LatLng(target.lat, target.lng), zoom: 14),
-                    liteModeEnabled: lowData,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    mapToolbarEnabled: false,
-                    markers: {
-                      Marker(markerId: const MarkerId('pickup'), position: LatLng(order.pickup.lat, order.pickup.lng), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange), infoWindow: InfoWindow(title: order.pickup.contactName ?? 'Pickup')),
-                      Marker(markerId: const MarkerId('dropoff'), position: LatLng(order.dropoff.lat, order.dropoff.lng), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), infoWindow: InfoWindow(title: 'Customer', snippet: order.dropoff.landmark)),
-                      if (me != null) Marker(markerId: const MarkerId('me'), position: LatLng(me.latitude, me.longitude), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure)),
-                    },
-                  ),
+                  child: !googleMapsAvailable
+                      ? _MapPlaceholder(onNavigate: () => openNavigation(target.lat, target.lng))
+                      : GoogleMap(
+                          initialCameraPosition: CameraPosition(target: LatLng(target.lat, target.lng), zoom: 14),
+                          liteModeEnabled: lowData,
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: false,
+                          zoomControlsEnabled: false,
+                          mapToolbarEnabled: false,
+                          markers: {
+                            Marker(markerId: const MarkerId('pickup'), position: LatLng(order.pickup.lat, order.pickup.lng), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange), infoWindow: InfoWindow(title: order.pickup.contactName ?? 'Pickup')),
+                            Marker(markerId: const MarkerId('dropoff'), position: LatLng(order.dropoff.lat, order.dropoff.lng), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), infoWindow: InfoWindow(title: 'Customer', snippet: order.dropoff.landmark)),
+                            if (me != null) Marker(markerId: const MarkerId('me'), position: LatLng(me.latitude, me.longitude), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure)),
+                          },
+                        ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -276,6 +278,31 @@ class _Finished extends StatelessWidget {
       title: delivered ? 'Delivery complete!' : 'This delivery was ${order.status.label.toLowerCase()}',
       message: delivered ? 'You earned ${formatMoney((order.amounts.riderEarningCents ?? 0) + order.amounts.tipCents)}.' : null,
       action: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Back to home')),
+    );
+  }
+}
+
+/// Shown instead of the map when Google Maps isn't available (web build without a Maps key).
+class _MapPlaceholder extends StatelessWidget {
+  const _MapPlaceholder({required this.onNavigate});
+  final VoidCallback onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: DsColors.orangeLight,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.map_outlined, size: 40, color: DsColors.orange),
+          const SizedBox(height: 8),
+          const Text('Open directions in Google Maps', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          FilledButton.icon(onPressed: onNavigate, icon: const Icon(Icons.navigation_rounded), label: const Text('Navigate')),
+        ],
+      ),
     );
   }
 }

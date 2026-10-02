@@ -797,6 +797,7 @@ const routes: Array<[method: string, pattern: RegExp, handler: Handler]> = [
   }],
 
   // ── Catalogue ──
+  ['GET', /^\/meta$/, () => ({ paymentsSimulated: true, smsSignIn: true })],
   ['GET', /^\/categories$/, () => DEMO_CATEGORIES],
   ['GET', /^\/vendors$/, (ctx) => {
     const q = ctx.query;

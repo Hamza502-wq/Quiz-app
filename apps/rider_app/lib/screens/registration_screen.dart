@@ -88,7 +88,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             const Text(
-              'Tell us about you and your vehicle. Our team checks every rider — you’ll get an SMS once approved.',
+              'Tell us about you and your vehicle. Our team checks every rider — we’ll let you know here once you’re approved.',
               style: TextStyle(color: DsColors.muted),
             ),
             const SizedBox(height: 16),

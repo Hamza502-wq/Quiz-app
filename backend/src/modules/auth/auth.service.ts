@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
-import type { RoleName } from '@prisma/client';
+import { Prisma, type RoleName } from '@prisma/client';
 import { env } from '../../config/env';
 import { prisma, type Db } from '../../lib/prisma';
-import { badRequest, forbidden, unauthorized } from '../../lib/errors';
+import { badRequest, conflict, forbidden, unauthorized } from '../../lib/errors';
 import { generateRefreshToken, signAccessToken } from '../../lib/tokens';
 import { sha256 } from '../../lib/random';
 
@@ -108,13 +108,54 @@ export async function loginWithVerifiedPhone(
     if (existing && name && !existing.name) {
       await tx.user.update({ where: { id: existing.id }, data: { name: name.trim() } });
     }
-    await ensureRole(tx, user.id, role);
-    if (role === 'CUSTOMER') {
-      await tx.customer.upsert({ where: { userId: user.id }, create: { userId: user.id }, update: {} });
-    }
+    await grantSelfServiceRole(tx, user.id, role);
     return user.id;
   });
 
+  return createSession(userId, client);
+}
+
+/** Roles a person can give themselves (ADMIN is only ever assigned by another admin). */
+const SELF_SERVICE_ROLES: readonly RoleName[] = ['CUSTOMER', 'RIDER', 'VENDOR'];
+
+/** Grants a self-service role and the records that role needs. */
+async function grantSelfServiceRole(db: Db, userId: string, role: RoleName): Promise<void> {
+  await ensureRole(db, userId, role);
+  if (role === 'CUSTOMER') {
+    await db.customer.upsert({ where: { userId }, create: { userId }, update: {} });
+  }
+}
+
+/**
+ * Creates an account protected by a password (used while no SMS provider is set
+ * up to send login codes). The phone number must not already have an account.
+ */
+export async function registerWithPassword(
+  phone: string,
+  password: string,
+  name: string,
+  role: RoleName,
+  client: ClientInfo,
+) {
+  if (!SELF_SERVICE_ROLES.includes(role)) throw forbidden('This account type cannot be created here.');
+  const existing = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+  if (existing) throw conflict('An account with this phone number already exists. Sign in instead.');
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
+  let userId: string;
+  try {
+    userId = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({ data: { phone, name: name.trim(), passwordHash } });
+      await grantSelfServiceRole(tx, user.id, role);
+      return user.id;
+    });
+  } catch (err) {
+    // Two sign-ups for the same number at once: the unique phone index rejects the second.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw conflict('An account with this phone number already exists. Sign in instead.');
+    }
+    throw err;
+  }
   return createSession(userId, client);
 }
 
@@ -127,7 +168,9 @@ export async function loginWithPassword(phone: string, password: string, role: R
   if (!user || !user.passwordHash || !ok) throw unauthorized('Incorrect phone number or password');
   if (user.status === 'SUSPENDED') throw forbidden('Your account has been suspended. Contact support.');
   if (role && !user.roles.some((r) => r.role.name === role)) {
-    throw forbidden(`This account does not have ${role.toLowerCase()} access.`);
+    // Like the SMS-code login, signing in to another app adds that self-service role.
+    if (!SELF_SERVICE_ROLES.includes(role)) throw forbidden(`This account does not have ${role.toLowerCase()} access.`);
+    await prisma.$transaction((tx) => grantSelfServiceRole(tx, user.id, role));
   }
   return createSession(user.id, client);
 }

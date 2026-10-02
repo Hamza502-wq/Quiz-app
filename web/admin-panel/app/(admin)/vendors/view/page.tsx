@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Ban, XCircle, Wallet } from 'lucide-react';
 import {
   ApprovalBadge,
@@ -70,9 +70,17 @@ interface Zone {
 }
 
 export default function VendorDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <VendorDetailView />
+    </Suspense>
+  );
+}
+
+function VendorDetailView() {
+  const id = useSearchParams().get('id') ?? '';
   const toast = useToast();
-  const { data: v, error, loading, reload } = useApi<VendorDetail>(`/admin/vendors/${id}`);
+  const { data: v, error, loading, reload } = useApi<VendorDetail>(id ? `/admin/vendors/${encodeURIComponent(id)}` : null);
   const zones = useApi<Zone[]>('/admin/zones');
   const [statusModal, setStatusModal] = useState<ApprovalStatus | null>(null);
   const [reason, setReason] = useState('');
@@ -286,7 +294,7 @@ export default function VendorDetailPage() {
         }
       >
         {statusModal !== 'APPROVED' ? (
-          <Field label="Reason (sent to the vendor by SMS)">
+          <Field label="Reason (shared with the shop)">
             <Textarea value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} />
           </Field>
         ) : (

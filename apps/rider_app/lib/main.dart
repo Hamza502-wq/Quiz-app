@@ -21,10 +21,12 @@ Future<void> main() async {
 
   auth.addSignInHook(() async {
     socket.connect();
+    rider.startPolling();
     await rider.refresh();
     await push.registerDevice();
   });
   auth.addSignOutHook(() async {
+    rider.stopPolling();
     await rider.goOfflineQuietly();
     await push.unregisterDevice();
     socket.disconnect();

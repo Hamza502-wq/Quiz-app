@@ -17,6 +17,7 @@ const poppins = localFont({
 export const metadata: Metadata = {
   title: { default: 'DoorStep Vendor', template: '%s · DoorStep Vendor' },
   description: 'Manage your store, menu and orders on DoorStep Zimbabwe.',
+  appleWebApp: { capable: true, title: 'DoorStep Shop', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

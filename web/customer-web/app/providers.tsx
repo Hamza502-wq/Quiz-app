@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { AuthProvider, MapsProvider, SocketProvider, ToastProvider, useAuth } from '@doorstep/web-shared';
+import { AuthProvider, MapsProvider, ServiceWorkerRegistration, SocketProvider, ToastProvider, useAuth } from '@doorstep/web-shared';
 import { CartProvider } from '@/lib/cart';
 import { LocationProvider } from '@/lib/location';
 import { SiteShell } from '@/components/SiteShell';
@@ -14,6 +14,7 @@ if (DEMO_MODE) installDemoApi();
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider role="CUSTOMER">
+      <ServiceWorkerRegistration />
       <ToastProvider>
         <LocationProvider>
           <CartProvider>

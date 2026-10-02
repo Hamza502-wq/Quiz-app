@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger';
 import { emitTo, rooms, ServerEvents } from '../../realtime/io';
 import { sendPush } from './push.provider';
 import { sendMessage } from './sms.provider';
+import { runInBackground } from '../../lib/background';
 
 export interface NotifyInput {
   userId: string;
@@ -66,7 +67,7 @@ export async function notify(input: NotifyInput): Promise<void> {
 
 /** Fire-and-forget wrapper for use inside request handlers. */
 export function notifyAsync(input: NotifyInput): void {
-  void notify(input);
+  runInBackground(notify(input), 'notify');
 }
 
 export async function notifyAdmins(input: Omit<NotifyInput, 'userId'>): Promise<void> {
@@ -75,4 +76,8 @@ export async function notifyAdmins(input: Omit<NotifyInput, 'userId'>): Promise<
     select: { id: true },
   });
   await Promise.all(admins.map((a) => notify({ ...input, userId: a.id })));
+}
+
+export function notifyAdminsAsync(input: Omit<NotifyInput, 'userId'>): void {
+  runInBackground(notifyAdmins(input), 'notify-admins');
 }

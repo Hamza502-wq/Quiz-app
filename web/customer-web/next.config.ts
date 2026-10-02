@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-// `npm run build:demo` exports plain static files (see netlify.toml); the normal build runs a Next.js server.
+// STATIC_EXPORT=1 exports plain static files (the Netlify site, and `npm run build:demo`); otherwise it runs a Next.js server.
 const staticExport = process.env.STATIC_EXPORT === '1';
 
 const nextConfig: NextConfig = {

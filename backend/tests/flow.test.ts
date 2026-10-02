@@ -70,6 +70,52 @@ describe('auth', () => {
     expect(wrongRole.status).toBe(403);
   });
 
+  it('creates password accounts for customers, riders and vendors', async () => {
+    const created = await api()
+      .post('/api/v1/auth/register')
+      .send({ phone: '0778111222', password: 'Shop12345', name: 'Mai Rudo', role: 'VENDOR' });
+    expect(created.status).toBe(200);
+    expect(created.body.accessToken).toBeTruthy();
+    expect(created.body.user).toMatchObject({ phone: '+263778111222', name: 'Mai Rudo', hasPassword: true });
+    expect(created.body.user.roles).toEqual(['VENDOR']);
+
+    const duplicate = await api()
+      .post('/api/v1/auth/register')
+      .send({ phone: '+263778111222', password: 'Other12345', name: 'Someone', role: 'CUSTOMER' });
+    expect(duplicate.status).toBe(409);
+    // Numbers that signed up with an SMS code can't be claimed with a password either.
+    const otpAccount = await api()
+      .post('/api/v1/auth/register')
+      .send({ phone: PHONES.customer, password: 'Other12345', name: 'Someone' });
+    expect(otpAccount.status).toBe(409);
+
+    const admin = await api()
+      .post('/api/v1/auth/register')
+      .send({ phone: '0778111333', password: 'Admin12345', name: 'Sneaky', role: 'ADMIN' });
+    expect(admin.status).toBe(400);
+    const weak = await api().post('/api/v1/auth/register').send({ phone: '0778111333', password: 'short', name: 'Weak' });
+    expect(weak.status).toBe(400);
+
+    // Signing in to the customer app with the same account adds the customer role.
+    const asCustomer = await api()
+      .post('/api/v1/auth/login')
+      .send({ phone: '0778111222', password: 'Shop12345', role: 'CUSTOMER' });
+    expect(asCustomer.status).toBe(200);
+    expect(asCustomer.body.user.roles.sort()).toEqual(['CUSTOMER', 'VENDOR']);
+    expect(asCustomer.body.user.customer).toBeTruthy();
+    const asAdmin = await api()
+      .post('/api/v1/auth/login')
+      .send({ phone: '0778111222', password: 'Shop12345', role: 'ADMIN' });
+    expect(asAdmin.status).toBe(403);
+
+    const rider = await api()
+      .post('/api/v1/auth/register')
+      .send({ phone: '0778111444', password: 'Ride12345', name: 'Tino', role: 'RIDER' });
+    expect(rider.status).toBe(200);
+    const me = await api().get('/api/v1/rider/me').set({ Authorization: `Bearer ${rider.body.accessToken}` });
+    expect(me.status).not.toBe(401);
+  });
+
   it('enforces roles', async () => {
     const res = await api().get('/api/v1/admin/dashboard').set(auth(customer));
     expect(res.status).toBe(403);
@@ -490,6 +536,44 @@ describe('uploads', () => {
 
     const notImage = await api().post('/api/v1/uploads').query({ kind: 'document' }).set(auth(rider)).attach('file', Buffer.from('hello'), { filename: 'a.png', contentType: 'image/png' });
     expect(notImage.status).toBe(400);
+  });
+});
+
+describe('uploads stored in the database', () => {
+  it('serves and protects images without touching the disk', async () => {
+    const { env } = await import('../src/config/env');
+    const { createApp } = await import('../src/app');
+    const request = (await import('supertest')).default;
+    const sharp = (await import('sharp')).default;
+    const png = await sharp({ create: { width: 40, height: 30, channels: 3, background: '#1A1A1A' } }).png().toBuffer();
+
+    const previous = env.UPLOAD_STORAGE;
+    env.UPLOAD_STORAGE = 'database';
+    try {
+      const dbApp = createApp();
+      const pub = await request(dbApp).post('/api/v1/uploads').query({ kind: 'vendor' }).set(auth(vendor)).attach('file', png, 'logo.png');
+      expect(pub.status).toBe(201);
+      const publicPath = new URL(pub.body.url).pathname;
+      expect(await prisma.storedFile.count({ where: { path: publicPath.replace('/uploads/', '') } })).toBe(1);
+      const served = await request(dbApp).get(publicPath);
+      expect(served.status).toBe(200);
+      expect(served.headers['content-type']).toContain('image/webp');
+      expect(served.body.length).toBeGreaterThan(20);
+      expect((await request(dbApp).get('/uploads/public/vendor/0123456789abcdef01234567.webp')).status).toBe(404);
+      expect((await request(dbApp).get('/uploads/public/secret/0123456789abcdef01234567.webp')).status).toBe(404);
+
+      const doc = await request(dbApp).post('/api/v1/uploads').query({ kind: 'proof' }).set(auth(rider)).attach('file', png, 'proof.png');
+      expect(doc.status).toBe(201);
+      const privatePath = new URL(doc.body.thumbUrl).pathname;
+      const own = await request(dbApp).get(privatePath).set(auth(rider));
+      expect(own.status).toBe(200);
+      expect(own.headers['content-type']).toContain('image/webp');
+      expect((await request(dbApp).get(privatePath).set(auth(customer))).status).toBe(403);
+      // Private files are never reachable through the public route.
+      expect((await request(dbApp).get(privatePath.replace('/api/v1/uploads/private/', '/uploads/public/'))).status).toBe(404);
+    } finally {
+      env.UPLOAD_STORAGE = previous;
+    }
   });
 });
 

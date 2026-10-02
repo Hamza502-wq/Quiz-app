@@ -15,11 +15,13 @@ import {
   timeAgo,
   useApi,
   useInterval,
+  useSocket,
   useSocketEvent,
   type Order,
 } from '@doorstep/web-shared';
 import { LiveMap, type LiveRider } from '@/components/LiveMap';
 import { AssignRiderModal } from '@/components/AssignRiderModal';
+import { orderHref } from '@/lib/routes';
 
 interface LiveData {
   orders: Order[];
@@ -34,7 +36,8 @@ export default function LivePage() {
   const [assigning, setAssigning] = useState<Order | null>(null);
   const [tab, setTab] = useState<'waiting' | 'all' | 'riders'>('waiting');
 
-  useInterval(() => void reload(), 20_000);
+  const { connected } = useSocket();
+  useInterval(() => void reload(), connected ? 20_000 : 8_000);
 
   useSocketEvent<{ riderId: string; lat: number; lng: number; activeOrderId: string | null; at: string }>('rider:location', (p) => {
     setData((prev) => {
@@ -79,7 +82,7 @@ export default function LivePage() {
         title="Live map"
         subtitle={`${data.orders.length} active orders · ${data.riders.length} riders online · ${waiting.length} waiting for a rider`}
       />
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[360px_1fr] [&>*]:min-w-0">
         <Card className="flex max-h-[calc(100vh-190px)] flex-col p-3">
           <Tabs
             tabs={[
@@ -113,7 +116,7 @@ export default function LivePage() {
                 {list.map((o) => (
                   <li key={o.id} className="rounded-xl border border-line p-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <button type="button" className="font-bold hover:text-brand" onClick={() => router.push(`/orders/${o.id}`)}>
+                      <button type="button" className="font-bold hover:text-brand" onClick={() => router.push(orderHref(o.id))}>
                         {o.code}
                       </button>
                       <OrderStatusBadge status={o.status} />
@@ -141,7 +144,7 @@ export default function LivePage() {
           </div>
         </Card>
         <div className="h-[calc(100vh-190px)] min-h-[420px] overflow-hidden rounded-2xl border border-line bg-white shadow-card">
-          <LiveMap orders={data.orders} riders={data.riders} onSelectOrder={(o) => (o.rider ? router.push(`/orders/${o.id}`) : setAssigning(o))} />
+          <LiveMap orders={data.orders} riders={data.riders} onSelectOrder={(o) => (o.rider ? router.push(orderHref(o.id)) : setAssigning(o))} />
         </div>
       </div>
       <AssignRiderModal

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import { z } from 'zod';
 
 const bool = (def: boolean) =>
@@ -55,9 +56,14 @@ const schema = z.object({
   PAYNOW_RETURN_URL: optionalString,
   // Simulates Paynow locally: payments confirm automatically a few seconds after initiation
   PAYMENTS_MOCK: bool(false),
+  // Lets a production deployment run with simulated payments until Paynow is set up.
+  // The apps tell customers that payments are simulated.
+  ALLOW_PAYMENTS_MOCK_IN_PRODUCTION: bool(false),
 
   GOOGLE_MAPS_SERVER_KEY: optionalString,
 
+  // "database" keeps images in Postgres, for hosts without a persistent disk (e.g. Netlify Functions)
+  UPLOAD_STORAGE: z.enum(['disk', 'database']).default('disk'),
   UPLOAD_DIR: z.string().default('uploads'),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(8),
 
@@ -67,7 +73,25 @@ const schema = z.object({
   SEED_ADMIN_PASSWORD: optionalString,
 });
 
-const parsed = schema.safeParse(process.env);
+/**
+ * Hosts where only one secret is configured (e.g. a Netlify site with just
+ * DATABASE_URL) can set SECRETS_FROM_DATABASE_URL=true: missing signing secrets
+ * are then derived from the database URL, which is itself a secret that grants
+ * full access to the data. Explicit JWT_ACCESS_SECRET / OTP_SECRET always win.
+ */
+export function withDerivedSecrets(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const flag = source.SECRETS_FROM_DATABASE_URL;
+  const dbUrl = source.DATABASE_URL;
+  if (!(flag === 'true' || flag === '1') || !dbUrl) return source;
+  const derive = (label: string) => crypto.createHmac('sha256', dbUrl).update(`doorstep:${label}`).digest('hex');
+  return {
+    ...source,
+    JWT_ACCESS_SECRET: source.JWT_ACCESS_SECRET || derive('jwt-access'),
+    OTP_SECRET: source.OTP_SECRET || derive('otp'),
+  };
+}
+
+const parsed = schema.safeParse(withDerivedSecrets(process.env));
 if (!parsed.success) {
   // eslint-disable-next-line no-console
   console.error('❌ Invalid environment configuration:');
@@ -86,9 +110,9 @@ if (data.NODE_ENV === 'production') {
     console.error('❌ OTP_DEV_ECHO must not be enabled in production');
     process.exit(1);
   }
-  if (data.PAYMENTS_MOCK) {
+  if (data.PAYMENTS_MOCK && !data.ALLOW_PAYMENTS_MOCK_IN_PRODUCTION) {
     // eslint-disable-next-line no-console
-    console.error('❌ PAYMENTS_MOCK must not be enabled in production');
+    console.error('❌ PAYMENTS_MOCK must not be enabled in production (set ALLOW_PAYMENTS_MOCK_IN_PRODUCTION=true to run with simulated payments)');
     process.exit(1);
   }
 }

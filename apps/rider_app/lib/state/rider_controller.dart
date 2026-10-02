@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:doorstep_core/doorstep_core.dart';
 import 'package:flutter/foundation.dart';
 
 import 'location_tracker.dart';
 
 /// Rider session state: registration/approval, online status, the current
-/// delivery request and the active delivery. Kept live via Socket.IO.
+/// delivery request and the active delivery. Kept live via Socket.IO, or by
+/// polling the API while there is no live connection.
 class RiderController extends ChangeNotifier {
   RiderController({required this.api, required this.socket, required this.tracker}) {
     socket.on('dispatch:offer', (data) {
@@ -158,6 +161,28 @@ class RiderController extends ChangeNotifier {
     await api.post('/rider/orders/$orderId/decline', body: {if (reason != null && reason.isNotEmpty) 'reason': reason});
     _activeOrder = null;
     await refresh();
+  }
+
+  Timer? _poll;
+
+  /// While signed in, refreshes every few seconds whenever the live connection
+  /// is down (or realtime is off), so new delivery requests still appear.
+  void startPolling({Duration every = const Duration(seconds: 5)}) {
+    _poll?.cancel();
+    _poll = Timer.periodic(every, (_) {
+      if (!socket.isConnected && !_loading && !_toggling) refresh();
+    });
+  }
+
+  void stopPolling() {
+    _poll?.cancel();
+    _poll = null;
+  }
+
+  @override
+  void dispose() {
+    stopPolling();
+    super.dispose();
   }
 
   void reset() {

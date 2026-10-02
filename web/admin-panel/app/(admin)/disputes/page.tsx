@@ -31,6 +31,7 @@ import {
   useToast,
   type Paged,
 } from '@doorstep/web-shared';
+import { orderHref } from '@/lib/routes';
 
 interface Dispute {
   id: string;
@@ -119,7 +120,7 @@ function DisputeList() {
             <Card key={d.id} className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/orders/${d.order.id}`} className="font-bold hover:text-brand">
+                  <Link href={orderHref(d.order.id)} className="font-bold hover:text-brand">
                     {d.order.code}
                   </Link>
                   <Badge tone={d.status === 'OPEN' ? 'red' : d.status === 'RESOLVED' ? 'green' : 'gray'}>{d.status.toLowerCase()}</Badge>
@@ -306,7 +307,7 @@ function RefundList() {
               {data.items.map((r) => (
                 <tr key={r.id}>
                   <Td>
-                    <Link href={`/orders/${r.order.id}`} className="font-semibold hover:text-brand">
+                    <Link href={orderHref(r.order.id)} className="font-semibold hover:text-brand">
                       {r.order.code}
                     </Link>
                   </Td>

@@ -25,7 +25,7 @@ Future<String?> pickAndUpload(BuildContext context, {required String kind, bool 
   if (source == null) return null;
   final file = await ImagePicker().pickImage(source: source, maxWidth: 1600, maxHeight: 1600, imageQuality: 75);
   if (file == null) return null;
-  final result = await api.uploadImage(file.path, kind);
+  final result = await api.uploadImage(await file.readAsBytes(), file.name, kind, mimeType: file.mimeType);
   return result.url;
 }
 

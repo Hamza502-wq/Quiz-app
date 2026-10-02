@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: { default: 'DoorStep Admin', template: '%s · DoorStep Admin' },
   description: 'DoorStep Zimbabwe operations console.',
   robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: 'DS Admin', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

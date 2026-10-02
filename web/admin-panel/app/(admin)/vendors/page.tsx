@@ -20,6 +20,7 @@ import {
   type ApprovalStatus,
   type Paged,
 } from '@doorstep/web-shared';
+import { vendorHref } from '@/lib/routes';
 
 interface AdminVendor {
   id: string;
@@ -95,7 +96,7 @@ function Vendors() {
               {data.items.map((v) => (
                 <tr key={v.id} className="hover:bg-canvas/60">
                   <Td>
-                    <Link href={`/vendors/${v.id}`} className="font-bold hover:text-brand">
+                    <Link href={vendorHref(v.id)} className="font-bold hover:text-brand">
                       {v.name}
                     </Link>
                     <span className="block text-xs text-muted">

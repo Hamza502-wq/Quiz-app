@@ -26,6 +26,7 @@ import {
   useToast,
   type Paged,
   type RoleName,
+  config,
 } from '@doorstep/web-shared';
 
 interface AdminUser {
@@ -195,7 +196,14 @@ function AddAdminModal({ open, onClose, onDone }: { open: boolean; onClose: () =
         <Field label="Full name">
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Password (optional)" hint="At least 8 characters with a letter and a number. They can always sign in with an SMS code.">
+        <Field
+          label={config.smsSignIn ? 'Password (optional)' : 'Password'}
+          hint={
+            config.smsSignIn
+              ? 'At least 8 characters with a letter and a number. They can always sign in with an SMS code.'
+              : 'At least 8 characters with a letter and a number. Leave empty only if they already have a DoorStep password.'
+          }
+        >
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <InlineError message={error} />

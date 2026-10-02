@@ -12,8 +12,11 @@ export class ApiError extends Error {
   }
 }
 
-const ACCESS_KEY = 'ds_access_token';
-const REFRESH_KEY = 'ds_refresh_token';
+// Apps that share one domain (customer site at "/", dashboards under a base
+// path) keep separate sessions, so the keys are namespaced by base path.
+const KEY_PREFIX = config.basePath ? `ds_${config.basePath.replace(/\W+/g, '')}_` : 'ds_';
+const ACCESS_KEY = `${KEY_PREFIX}access_token`;
+const REFRESH_KEY = `${KEY_PREFIX}refresh_token`;
 
 export const tokenStore = {
   get access(): string | null {
@@ -82,8 +85,11 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** Base for resolving relative URLs (the API may share this site's domain). */
+const pageOrigin = () => (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
+
 function buildUrl(path: string, query?: Query): string {
-  const url = new URL(`${config.apiUrl}/api/v1${path}`);
+  const url = new URL(`${config.apiUrl}/api/v1${path}`, pageOrigin());
   if (query) {
     for (const [k, v] of Object.entries(query)) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
@@ -165,11 +171,28 @@ export async function uploadImage(file: File, kind: UploadKind): Promise<UploadR
 
 /** Fetches a private (auth-protected) file and returns an object URL. */
 export async function fetchPrivateBlobUrl(url: string): Promise<string> {
-  const res = await send(url, { method: 'GET' }, true);
+  // Always ask our own API for the file (the stored link may name another of the site's domains),
+  // so the access token is only ever sent to the API.
+  const path = privateUploadPath(url);
+  if (!path) throw new ApiError(0, 'Not a private upload');
+  const res = await send(new URL(`${config.apiUrl}${path}`, pageOrigin()).toString(), { method: 'GET' }, true);
   if (!res.ok) throw await parseError(res);
   return URL.createObjectURL(await res.blob());
 }
 
+const PRIVATE_UPLOAD_PREFIX = '/api/v1/uploads/private/';
+
+/** Path of a private upload link (documents, delivery proof), or null for anything else. */
+function privateUploadPath(url: string): string | null {
+  try {
+    const { pathname } = new URL(url, pageOrigin());
+    return pathname.startsWith(PRIVATE_UPLOAD_PREFIX) ? pathname : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True for private uploads (documents, delivery proof), which need the access token to load. */
 export function isPrivateUpload(url: string): boolean {
-  return url.startsWith(`${config.apiUrl}/api/v1/uploads/private/`);
+  return privateUploadPath(url) !== null;
 }

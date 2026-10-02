@@ -12,3 +12,5 @@ export * from './maps';
 export * from './AuthImage';
 export * from './LoginPage';
 export * from './AppShell';
+export * from './pwa';
+export * from './ChangePassword';

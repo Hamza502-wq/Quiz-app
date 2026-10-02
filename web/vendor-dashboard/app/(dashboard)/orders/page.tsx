@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bike, CheckCircle2, ChefHat, Clock, PackageCheck, XCircle } from 'lucide-react';
 import {
   Badge,
@@ -29,6 +29,7 @@ import {
   timeAgo,
   useApi,
   useInterval,
+  useSocket,
   useSocketEvent,
   useToast,
   type Order,
@@ -94,8 +95,25 @@ function Board() {
   useSocketEvent<Order>('order:updated', (order) => {
     if (order && 'status' in order && 'items' in order) upsert(order);
   });
-  // Fallback polling in case the live connection drops.
-  useInterval(() => void reload(), 30_000);
+  // Polling: a safety net while live updates are on, the main source when they're off.
+  const { connected } = useSocket();
+  useInterval(() => void reload(), connected ? 30_000 : 6_000);
+
+  // Without live updates, announce orders that appear between polls.
+  const seenOrderIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const placed = data.items.filter((o) => o.status === 'PLACED');
+    const seen = seenOrderIds.current;
+    if (seen && !connected) {
+      const fresh = placed.filter((o) => !seen.has(o.id));
+      if (fresh.length > 0) {
+        playNewOrderChime();
+        toast(fresh.length === 1 ? `New order ${fresh[0].code}!` : `${fresh.length} new orders!`, 'info');
+      }
+    }
+    seenOrderIds.current = new Set([...(seen ?? []), ...data.items.map((o) => o.id)]);
+  }, [data, connected, toast]);
 
   const grouped = useMemo(() => {
     const byCol: Record<string, Order[]> = {};

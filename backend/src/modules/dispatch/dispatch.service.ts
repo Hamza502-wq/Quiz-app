@@ -10,6 +10,7 @@ import { canTakeCashOrder, getCashLimitCents, getCashOwedCents } from '../wallet
 import { notify, notifyAsync } from '../notifications/notification.service';
 import { publishOrderUpdate } from '../orders/order.events';
 import { ACTIVE_STATUSES } from '../orders/order.presenter';
+import { runInBackground } from '../../lib/background';
 
 /** Statuses in which an order can receive a rider. */
 export const DISPATCHABLE_STATUSES: OrderStatus[] = ['PLACED', 'ACCEPTED', 'READY_FOR_PICKUP'];
@@ -234,7 +235,7 @@ export async function declineOffer(riderId: string, offerId: string) {
     where: { id: offerId, status: 'OFFERED' },
     data: { status: 'DECLINED', respondedAt: new Date() },
   });
-  if (updated.count > 0) void startAutoDispatch(offer.orderId);
+  if (updated.count > 0) runInBackground(startAutoDispatch(offer.orderId), 'dispatch');
   return { ok: true };
 }
 
@@ -320,7 +321,7 @@ export async function riderReleaseOrder(riderId: string, orderId: string, reason
     });
   });
   await publishOrderUpdate(orderId);
-  void startAutoDispatch(orderId);
+  runInBackground(startAutoDispatch(orderId), 'dispatch');
   return { ok: true };
 }
 

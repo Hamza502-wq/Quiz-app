@@ -15,6 +15,7 @@ import {
   PAYMENT_METHOD_LABEL,
   PaymentStatusBadge,
   api,
+  config,
   formatDateTime,
   formatMoney,
   useApi,
@@ -121,7 +122,7 @@ function OrderView({ order, setOrder, reload }: { order: CustomerOrder; setOrder
   }, [active, order.status, pollTracking]);
   useInterval(
     () => void pollTracking(),
-    active && order.status !== 'PENDING_PAYMENT' ? (DEMO_MODE ? 3_000 : connected ? 60_000 : 20_000) : null,
+    active && order.status !== 'PENDING_PAYMENT' ? (DEMO_MODE ? 3_000 : connected ? 60_000 : config.realtime ? 20_000 : 6_000) : null,
   );
 
   const orderAgain = async () => {

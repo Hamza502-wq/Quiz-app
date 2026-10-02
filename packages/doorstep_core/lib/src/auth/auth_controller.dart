@@ -87,6 +87,30 @@ class AuthController extends ChangeNotifier {
       body: {'phone': phone, 'code': code, 'role': role, if (name != null && name.isNotEmpty) 'name': name},
       auth: false,
     ) as Map<String, dynamic>;
+    await _acceptSession(data);
+  }
+
+  /// Signs in with phone number and password (signing in to this app adds its role).
+  Future<void> loginWithPassword(String phone, String password) async {
+    final data = await api.post(
+      '/auth/login',
+      body: {'phone': phone, 'password': password, 'role': role},
+      auth: false,
+    ) as Map<String, dynamic>;
+    await _acceptSession(data);
+  }
+
+  /// Creates a password account for this app's role.
+  Future<void> register({required String name, required String phone, required String password}) async {
+    final data = await api.post(
+      '/auth/register',
+      body: {'name': name, 'phone': phone, 'password': password, 'role': role},
+      auth: false,
+    ) as Map<String, dynamic>;
+    await _acceptSession(data);
+  }
+
+  Future<void> _acceptSession(Map<String, dynamic> data) async {
     await api.tokens.save(data['accessToken'] as String, data['refreshToken'] as String);
     final profile = Profile.fromJson(data['user'] as Map<String, dynamic>);
     await _cache(profile);

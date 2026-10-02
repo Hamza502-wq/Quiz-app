@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthGate, Button, FlagStripe, Logo, api, useAuth, useToast, type VendorProfile } from '@doorstep/web-shared';
 import { StoreForm } from '@/components/StoreForm';
@@ -17,9 +17,11 @@ function Onboarding() {
   const router = useRouter();
   const toast = useToast();
   const { user, refreshProfile, logout } = useAuth();
+  // Set once the store is submitted here, so the "already has a store" redirect doesn't race the one below.
+  const submitted = useRef(false);
 
   useEffect(() => {
-    if (user?.vendor) router.replace('/');
+    if (user?.vendor && !submitted.current) router.replace('/');
   }, [user, router]);
 
   return (
@@ -33,8 +35,8 @@ function Onboarding() {
       <main className="mx-auto max-w-3xl px-4 py-8">
         <h1 className="text-3xl font-bold">List your store on DoorStep</h1>
         <p className="mt-2 text-muted">
-          Tell us about your business. Our team reviews every store — you&apos;ll get an SMS once you&apos;re approved and can start
-          receiving orders.
+          Tell us about your business. Our team reviews every store — you&apos;ll be notified here once you&apos;re approved and can
+          start receiving orders.
         </p>
         <FlagStripe className="mb-8 mt-4" />
         <StoreForm
@@ -42,6 +44,7 @@ function Onboarding() {
           defaultPhone={user?.phone}
           onSubmit={async (values) => {
             const { logoUrl, coverUrl, ...rest } = values;
+            submitted.current = true;
             await api<VendorProfile>('/vendor/onboarding', {
               body: { ...rest, logoUrl: logoUrl ?? undefined, coverUrl: coverUrl ?? undefined, ownerName: user?.name ?? undefined },
             });

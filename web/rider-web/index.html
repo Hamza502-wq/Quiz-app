@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Replaced with the `--base-href` given to `flutter build web` (e.g. /rider/). -->
+  <base href="/rider/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DoorStep Rider — accept deliveries, navigate, prove delivery and track your earnings.">
+  <meta name="theme-color" content="#FF7A00">
+
+  <!-- iOS: install to home screen -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="DoorStep Rider">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>DoorStep Rider</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- GOOGLE_MAPS_SCRIPT: the Netlify build inserts the Maps JavaScript API here when a key is configured. -->
+
+  <style>
+    body { margin: 0; background: #FFFFFF; }
+    #ds-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font-family: Poppins, system-ui, sans-serif; color: #1A1A1A; }
+    #ds-splash img { width: 96px; height: 96px; border-radius: 22px; }
+    #ds-splash p { margin: 0; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="ds-splash" aria-live="polite">
+    <img src="icons/Icon-192.png" alt="">
+    <p>DoorStep Rider</p>
+  </div>
+  <script>
+    // Remove the splash when Flutter draws its first frame (or adds its view, or after 15s at the latest).
+    (function () {
+      function removeSplash() {
+        var splash = document.getElementById('ds-splash');
+        if (splash) splash.remove();
+      }
+      window.addEventListener('flutter-first-frame', removeSplash);
+      new MutationObserver(function (_, observer) {
+        if (document.querySelector('flutter-view, flt-glass-pane')) {
+          observer.disconnect();
+          setTimeout(removeSplash, 300);
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+      setTimeout(removeSplash, 15000);
+    })();
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

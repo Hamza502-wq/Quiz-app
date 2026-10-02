@@ -8,7 +8,7 @@ import { getSettings } from '../settings/settings.service';
 import { assertOnlinePaymentsAvailable, payForOrder, tipRider } from '../payments/payment.service';
 import { rateOrder } from '../ratings/rating.service';
 import { listMessages, sendMessage } from '../chat/chat.service';
-import { notifyAdmins } from '../notifications/notification.service';
+import { notifyAdminsAsync } from '../notifications/notification.service';
 import {
   cancelByCustomer,
   createParcelOrder,
@@ -319,7 +319,7 @@ defineRoute(orderRouter, {
     const dispute = await prisma.dispute.create({
       data: { orderId: order.id, raisedById: user.id, reason: body.reason, description: body.description },
     });
-    void notifyAdmins({
+    notifyAdminsAsync({
       type: 'DISPUTE_OPENED',
       title: 'New dispute',
       body: `Order ${order.code}: ${body.reason.replace(/_/g, ' ').toLowerCase()}`,

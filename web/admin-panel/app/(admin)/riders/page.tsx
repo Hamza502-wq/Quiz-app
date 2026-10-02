@@ -22,6 +22,7 @@ import {
   type ApprovalStatus,
   type Paged,
 } from '@doorstep/web-shared';
+import { riderHref } from '@/lib/routes';
 
 interface AdminRider {
   id: string;
@@ -97,7 +98,7 @@ function Riders() {
               {data.items.map((r) => (
                 <tr key={r.id} className="hover:bg-canvas/60">
                   <Td>
-                    <Link href={`/riders/${r.id}`} className="font-bold hover:text-brand">
+                    <Link href={riderHref(r.id)} className="font-bold hover:text-brand">
                       {r.user.name ?? r.user.phone}
                     </Link>
                     <span className="block text-xs text-muted">{r.user.phone}</span>

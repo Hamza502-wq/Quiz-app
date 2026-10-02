@@ -21,6 +21,7 @@ import {
   useApi,
   useInterval,
 } from '@doorstep/web-shared';
+import { vendorHref, riderHref } from '@/lib/routes';
 
 interface Summary {
   ordersToday: number;
@@ -154,7 +155,7 @@ function AnalyticsBody({ data }: { data: Analytics }) {
         <StatCard label="Active customers" value={data.users.activeCustomers} hint={`${data.users.newCustomers} new · ${data.users.activeUsers} users seen`} icon={<Users className="h-5 w-5" />} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2 [&>*]:min-w-0">
         <div>
           <h3 className="mb-2 font-semibold">Orders per day</h3>
           <div className="h-64">
@@ -189,7 +190,7 @@ function AnalyticsBody({ data }: { data: Analytics }) {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3 [&>*]:min-w-0">
         <div>
           <h3 className="mb-2 font-semibold">Payment mix</h3>
           {data.paymentMix.length === 0 ? (
@@ -225,7 +226,7 @@ function AnalyticsBody({ data }: { data: Analytics }) {
               {data.topVendors.map((v) => (
                 <tr key={v.id}>
                   <Td>
-                    <Link href={`/vendors/${v.id}`} className="font-semibold hover:text-brand">
+                    <Link href={vendorHref(v.id)} className="font-semibold hover:text-brand">
                       {v.name}
                     </Link>
                   </Td>
@@ -261,7 +262,7 @@ function AnalyticsBody({ data }: { data: Analytics }) {
             {data.riderPerformance.map((r) => (
               <tr key={r.riderId}>
                 <Td>
-                  <Link href={`/riders/${r.riderId}`} className="font-semibold hover:text-brand">
+                  <Link href={riderHref(r.riderId)} className="font-semibold hover:text-brand">
                     {r.name ?? r.phone}
                   </Link>
                 </Td>

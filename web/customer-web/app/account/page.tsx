@@ -6,6 +6,7 @@ import { Home, LogOut, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import {
   Button,
   Card,
+  ChangePasswordButton,
   ErrorState,
   Field,
   InlineError,
@@ -58,16 +59,19 @@ function Account() {
         subtitle={welcome ? 'Tell us your name so stores and riders know who the order is for.' : user?.phone}
         actions={
           welcome ? undefined : (
-            <Button
-              variant="secondary"
-              icon={<LogOut className="h-4 w-4" />}
-              onClick={async () => {
-                await logout();
-                router.replace('/');
-              }}
-            >
-              Sign out
-            </Button>
+            <div className="flex flex-wrap items-center gap-4">
+              <ChangePasswordButton className="text-sm font-semibold text-brand" />
+              <Button
+                variant="secondary"
+                icon={<LogOut className="h-4 w-4" />}
+                onClick={async () => {
+                  await logout();
+                  router.replace('/');
+                }}
+              >
+                Sign out
+              </Button>
+            </div>
           )
         }
       />

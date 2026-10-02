@@ -177,3 +177,40 @@ describe('Paynow protocol', () => {
     expect(() => parseStatusMessage(body, 'ZWG')).toThrow(/not configured/);
   });
 });
+
+describe('secrets derived from DATABASE_URL', () => {
+  it('fills missing signing secrets only when enabled', async () => {
+    const { withDerivedSecrets } = await import('../src/config/env');
+    const base = { DATABASE_URL: 'postgresql://app:pw@db.example:6543/postgres' };
+    expect(withDerivedSecrets(base)).toEqual(base);
+
+    const derived = withDerivedSecrets({ ...base, SECRETS_FROM_DATABASE_URL: 'true' });
+    expect(derived.JWT_ACCESS_SECRET).toMatch(/^[a-f0-9]{64}$/);
+    expect(derived.OTP_SECRET).toMatch(/^[a-f0-9]{64}$/);
+    expect(derived.OTP_SECRET).not.toBe(derived.JWT_ACCESS_SECRET);
+    // Stable for the same database, different for another one.
+    expect(withDerivedSecrets({ ...base, SECRETS_FROM_DATABASE_URL: '1' }).JWT_ACCESS_SECRET).toBe(derived.JWT_ACCESS_SECRET);
+    const other = withDerivedSecrets({ DATABASE_URL: 'postgresql://app:other@db.example:6543/postgres', SECRETS_FROM_DATABASE_URL: 'true' });
+    expect(other.JWT_ACCESS_SECRET).not.toBe(derived.JWT_ACCESS_SECRET);
+    // Explicit secrets always win.
+    const explicit = withDerivedSecrets({ ...base, SECRETS_FROM_DATABASE_URL: 'true', JWT_ACCESS_SECRET: 'x'.repeat(40) });
+    expect(explicit.JWT_ACCESS_SECRET).toBe('x'.repeat(40));
+  });
+});
+
+describe('serverless database URL', () => {
+  it('limits each function instance to one connection and enables pgbouncer mode for the Supabase pooler', async () => {
+    const { serverlessDatabaseUrl } = await import('../src/lib/database-url');
+    const pooler = serverlessDatabaseUrl('postgresql://postgres.abc:pa%24s@aws-0-us-east-2.pooler.supabase.com:6543/postgres');
+    const url = new URL(pooler);
+    expect(url.searchParams.get('connection_limit')).toBe('1');
+    expect(url.searchParams.get('pgbouncer')).toBe('true');
+    expect(url.password).toBe('pa%24s');
+    // Explicit settings are kept; other hosts don't get pgbouncer mode.
+    const custom = new URL(serverlessDatabaseUrl('postgresql://u:p@db.example.com:5432/app?connection_limit=5&schema=public'));
+    expect(custom.searchParams.get('connection_limit')).toBe('5');
+    expect(custom.searchParams.get('schema')).toBe('public');
+    expect(custom.searchParams.has('pgbouncer')).toBe(false);
+    expect(serverlessDatabaseUrl('not a url')).toBe('not a url');
+  });
+});

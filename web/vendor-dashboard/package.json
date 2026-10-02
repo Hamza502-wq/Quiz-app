@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node ../shared/pwa/copy-assets.mjs",
     "dev": "next dev -p 3000",
+    "prebuild": "node ../shared/pwa/copy-assets.mjs",
     "build": "next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit"

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Bike, Phone, UserX, XCircle } from 'lucide-react';
 import {
   AuthImage,
@@ -22,6 +22,8 @@ import {
   formatDateTime,
   formatMoney,
   useApi,
+  useInterval,
+  useSocket,
   useSocketEvent,
   useToast,
   type Order,
@@ -38,9 +40,17 @@ const REASSIGNABLE = ['PLACED', 'ACCEPTED', 'READY_FOR_PICKUP'];
 const CANCELLABLE = ['PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'READY_FOR_PICKUP', 'PICKED_UP', 'ON_THE_WAY'];
 
 export default function OrderDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <OrderDetailView />
+    </Suspense>
+  );
+}
+
+function OrderDetailView() {
+  const id = useSearchParams().get('id') ?? '';
   const toast = useToast();
-  const { data: order, error, loading, reload } = useApi<AdminOrder>(`/admin/orders/${id}`);
+  const { data: order, error, loading, reload } = useApi<AdminOrder>(id ? `/admin/orders/${encodeURIComponent(id)}` : null);
   const [assigning, setAssigning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState('');
@@ -50,6 +60,8 @@ export default function OrderDetailPage() {
   useSocketEvent<Order>('order:updated', (o) => {
     if (o?.id === id) void reload();
   });
+  const { connected } = useSocket();
+  useInterval(() => void reload(), connected ? null : 8_000);
 
   if (loading && !order) return <LoadingBlock />;
   if (error || !order) return <ErrorState message={error?.message ?? 'Order not found'} onRetry={() => void reload()} />;

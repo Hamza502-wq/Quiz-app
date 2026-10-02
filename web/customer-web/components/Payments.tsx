@@ -19,6 +19,7 @@ import {
 import { ONLINE_PAYMENT_OPTIONS } from '@/lib/payment';
 import { looksLikePhone } from '@/lib/format';
 import type { PaymentInfo } from '@/lib/types';
+import { SimulatedPaymentsNote } from './SimulatedPaymentsNote';
 
 type OnlineMethod = 'ECOCASH' | 'ONEMONEY' | 'CARD';
 const POLL_MS = 4000;
@@ -130,6 +131,7 @@ export function OnlinePaymentForm({
           <Input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07xx xxx xxx" />
         </Field>
       ) : null}
+      <SimulatedPaymentsNote />
       <InlineError message={error} />
       <Button type="submit" loading={pending} className="w-full">
         {submitLabel}

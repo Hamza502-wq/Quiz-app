@@ -33,6 +33,7 @@ import { addressSummary, etaLabel, formatIn, looksLikePhone } from '@/lib/format
 import type { Address, CheckoutResult, Quote } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { AddressFormModal } from '@/components/AddressFormModal';
+import { SimulatedPaymentsNote } from '@/components/SimulatedPaymentsNote';
 
 export default function CheckoutPage() {
   return (
@@ -237,6 +238,11 @@ function Checkout() {
                 </button>
               ))}
             </div>
+            {method !== 'CASH' ? (
+              <div className="mt-4">
+                <SimulatedPaymentsNote />
+              </div>
+            ) : null}
             {isMobileMoney ? (
               <Field label={`${method === 'ECOCASH' ? 'EcoCash' : 'OneMoney'} number`} className="mt-4" hint="We'll send the payment prompt to this number.">
                 <Input type="tel" inputMode="tel" value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} placeholder="07xx xxx xxx" />

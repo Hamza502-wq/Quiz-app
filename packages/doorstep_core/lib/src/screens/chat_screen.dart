@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,11 +31,16 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   Object? _error;
   VoidCallback? _unsubscribe;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Without a live connection, check for new messages every few seconds.
+    _poll = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted && !context.read<SocketService>().isConnected) _refresh();
+    });
     _unsubscribe = context.read<SocketService>().on('chat:message', (data) {
       if (data is! Map) return;
       final msg = ChatMessage.fromJson(Map<String, dynamic>.from(data));
@@ -47,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _poll?.cancel();
     _unsubscribe?.call();
     _input.dispose();
     _scroll.dispose();
@@ -75,6 +83,24 @@ class _ChatScreenState extends State<ChatScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  /// Quietly adds messages that arrived since the last load.
+  Future<void> _refresh() async {
+    if (_loading) return;
+    try {
+      final data = await context.read<ApiClient>().get('/orders/${widget.orderId}/messages') as List;
+      if (!mounted) return;
+      final fresh = data
+          .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+          .where((m) => !_messages.any((x) => x.id == m.id))
+          .toList();
+      if (fresh.isEmpty) return;
+      setState(() => _messages.addAll(fresh));
+      _scrollToEnd();
+    } catch (_) {
+      // Try again on the next tick.
     }
   }
 

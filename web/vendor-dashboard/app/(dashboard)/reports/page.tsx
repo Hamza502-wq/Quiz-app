@@ -134,7 +134,7 @@ export default function ReportsPage() {
             )}
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
             <Card>
               <h2 className="mb-3 text-lg font-bold">Top products</h2>
               {sales.data.topProducts.length === 0 ? (

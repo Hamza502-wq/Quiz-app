@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: { default: 'DoorStep Zimbabwe — food, groceries & parcels delivered', template: '%s · DoorStep Zimbabwe' },
   description:
     'Order food, groceries and pharmacy items from local stores, or send a parcel across town. Pay with EcoCash, OneMoney, card or cash, in US dollars or ZiG.',
+  appleWebApp: { capable: true, title: 'DoorStep', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

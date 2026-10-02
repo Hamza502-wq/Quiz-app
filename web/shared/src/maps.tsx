@@ -25,6 +25,8 @@ export function MapNotConfigured({ className, message }: { className?: string; m
       <MapPinned className="h-8 w-8 text-brand" aria-hidden />
       {message ? (
         <p>{message}</p>
+      ) : process.env.NODE_ENV === 'production' ? (
+        <p>The map isn&apos;t available right now. Use your current location or enter the coordinates.</p>
       ) : (
         <p>
           Maps are disabled. Set <code className="rounded bg-white px-1">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> to enable Google Maps.

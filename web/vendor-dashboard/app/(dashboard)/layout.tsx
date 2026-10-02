@@ -100,7 +100,7 @@ function VendorShell({ children }: { children: ReactNode }) {
 
   return (
     <VendorProvider value={{ vendor, setVendor, reload: load }}>
-      <AppShell nav={NAV} product="Vendor" headerExtra={header}>
+      <AppShell nav={NAV} product="Shop" headerExtra={header}>
         {vendor.status === 'PENDING' ? (
           <div className="mb-6 rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-sm text-ink">
             <strong>Your store is under review.</strong> Set up your menu and opening hours now — you&apos;ll be visible to customers as soon as the

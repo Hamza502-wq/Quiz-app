@@ -12,6 +12,7 @@ import {
   LoadingBlock,
   Select,
   Toggle,
+  appLinks,
   cn,
   useApi,
   type Paged,
@@ -21,6 +22,8 @@ import type { Category, VendorSummary } from '@/lib/types';
 import { VendorCard } from '@/components/VendorCard';
 import { CategoryIcon } from '@/components/StoreVisuals';
 import { DeliverToModal } from '@/components/DeliverToModal';
+import { Photo } from '@/components/Photo';
+import { PHOTOS } from '@/lib/photos';
 
 const PAGE_SIZE = 12;
 type Sort = 'recommended' | 'rating' | 'distance' | 'deliveryFee';
@@ -40,6 +43,7 @@ function Home() {
   const params = useSearchParams();
   const { deliverTo, ready: locationReady } = useDeliverTo();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [heroPhotoFailed, setHeroPhotoFailed] = useState(false);
 
   const category = params.get('category') ?? '';
   const q = params.get('q') ?? '';
@@ -139,9 +143,21 @@ function Home() {
               </button>
             </div>
           </div>
-          <div className="hidden justify-center md:flex">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.png" alt="" className="h-56 w-56 rounded-[2.5rem] shadow-2xl" />
+          <div className="relative hidden justify-center md:flex">
+            <Photo
+              src={PHOTOS.hero}
+              alt="A table of freshly prepared food"
+              className="aspect-[4/3] w-full max-w-sm rotate-2 rounded-[2rem] border-4 border-white/80 object-cover shadow-2xl"
+              onFailed={() => setHeroPhotoFailed(true)}
+              fallback={
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/icon.png" alt="" className="h-56 w-56 rounded-[2.5rem] shadow-2xl" />
+              }
+            />
+            {heroPhotoFailed ? null : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/icon.png" alt="" className="absolute -bottom-4 left-4 h-20 w-20 rounded-2xl shadow-xl" />
+            )}
           </div>
         </div>
       </section>
@@ -160,7 +176,23 @@ function Home() {
           </Link>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {!q && !category ? (
+          <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Shop by category">
+            {CATEGORY_TILES.map((tile) =>
+              tile.slug === 'parcels' ? (
+                <Link key={tile.slug} href="/parcel" className="group">
+                  <PhotoTile {...tile} />
+                </Link>
+              ) : (
+                <button key={tile.slug} type="button" className="group text-left" onClick={() => setParam({ category: tile.slug })}>
+                  <PhotoTile {...tile} />
+                </button>
+              ),
+            )}
+          </section>
+        ) : null}
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold">
               {q ? `Results for “${q}”` : category ? (shopCategories.find((c) => c.slug === category)?.name ?? 'Stores') : 'Stores near you'}
@@ -208,13 +240,13 @@ function Home() {
           ) : shown.length === 0 ? (
             <EmptyState
               icon={<Store className="h-9 w-9" aria-hidden />}
-              title="No stores found"
+              title={q || category || openNow ? 'No stores found' : 'No shops here yet'}
               message={
                 q || category || openNow
                   ? 'Try a different search or clear the filters.'
                   : deliverTo
-                    ? 'No stores deliver to this location yet. Try another address.'
-                    : 'No stores are available right now.'
+                    ? 'No shops deliver to this location yet. Know a great local shop? Invite them to join DoorStep.'
+                    : 'Shops are joining DoorStep every day. Own one? List it and start receiving orders.'
               }
               action={
                 q || category || openNow ? (
@@ -227,7 +259,11 @@ function Home() {
                   >
                     Clear filters
                   </Button>
-                ) : undefined
+                ) : (
+                  <a href={`${appLinks.vendor}login?signup=1`} className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:bg-brand-dark">
+                    List your shop <ArrowRight className="h-4 w-4" aria-hidden />
+                  </a>
+                )
               }
             />
           ) : (
@@ -268,6 +304,27 @@ function Home() {
             Send a parcel <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </section>
+
+        <section className="mt-10 grid gap-5 md:grid-cols-2" aria-label="Work with DoorStep">
+          <JoinCard
+            photo={PHOTOS.shopOwner}
+            icon={<Store className="h-6 w-6" />}
+            title="Sell on DoorStep"
+            text="List your restaurant, grocery or pharmacy and reach customers across town. Manage orders and your menu from any phone."
+            cta="List your shop"
+            href={`${appLinks.vendor}login?signup=1`}
+          />
+          {appLinks.rider ? (
+            <JoinCard
+              photo={PHOTOS.rider}
+              icon={<Bike className="h-6 w-6" />}
+              title="Ride with DoorStep"
+              text="Deliver orders on your own schedule. Go online when you want, see your earnings and get paid weekly."
+              cta="Become a rider"
+              href={appLinks.rider}
+            />
+          ) : null}
+        </section>
       </div>
 
       <DeliverToModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
@@ -302,3 +359,57 @@ function HowItWorks({ icon, title, text }: { icon: ReactNode; title: string; tex
   );
 }
 
+const CATEGORY_TILES = [
+  { slug: 'food', title: 'Food', text: 'Restaurants & takeaways', photo: PHOTOS.food },
+  { slug: 'groceries', title: 'Groceries', text: 'Fresh produce & essentials', photo: PHOTOS.groceries },
+  { slug: 'pharmacy', title: 'Pharmacy', text: 'Medicine & health', photo: PHOTOS.pharmacy },
+  { slug: 'parcels', title: 'Parcels', text: 'Send anything across town', photo: PHOTOS.parcels },
+];
+
+function PhotoTile({ slug, title, text, photo }: { slug: string; title: string; text: string; photo: string }) {
+  return (
+    <div className="relative h-36 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark shadow-card sm:h-44">
+      <Photo
+        src={photo}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+        fallback={
+          <div className="flex h-full w-full items-start justify-end p-4">
+            <CategoryIcon slug={slug} className="h-10 w-10 text-white/80 sm:h-12 sm:w-12" />
+          </div>
+        }
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 p-3 text-white sm:p-4">
+        <p className="text-base font-bold sm:text-lg">{title}</p>
+        <p className="text-xs text-white/85">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function JoinCard({ photo, icon, title, text, cta, href }: { photo: string; icon: ReactNode; title: string; text: string; cta: string; href: string }) {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-card sm:flex-row">
+      <div className="h-44 shrink-0 bg-gradient-to-br from-brand to-brand-dark sm:h-auto sm:w-2/5">
+        <Photo
+          src={photo}
+          className="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon.png" alt="" className="h-20 w-20 rounded-2xl shadow-lg" />
+            </div>
+          }
+        />
+      </div>
+      <div className="flex flex-1 flex-col p-6">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-light text-brand">{icon}</div>
+        <h3 className="mt-3 text-lg font-bold">{title}</h3>
+        <p className="mt-1 flex-1 text-sm text-muted">{text}</p>
+        <a href={href} className="mt-4 inline-flex items-center gap-2 self-start rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">
+          {cta} <ArrowRight className="h-4 w-4" aria-hidden />
+        </a>
+      </div>
+    </div>
+  );
+}

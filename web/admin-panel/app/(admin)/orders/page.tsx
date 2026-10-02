@@ -22,6 +22,7 @@ import {
   type Order,
   type Paged,
 } from '@doorstep/web-shared';
+import { orderHref } from '@/lib/routes';
 
 const STATUS_OPTIONS = [
   ['', 'All statuses'],
@@ -90,7 +91,7 @@ export default function OrdersPage() {
               {data.items.map((o) => (
                 <tr key={o.id} className="hover:bg-canvas/60">
                   <Td>
-                    <Link href={`/orders/${o.id}`} className="font-bold text-ink hover:text-brand">
+                    <Link href={orderHref(o.id)} className="font-bold text-ink hover:text-brand">
                       {o.code}
                     </Link>
                     {o.type === 'PARCEL' ? <span className="ml-1 text-xs text-muted">parcel</span> : null}

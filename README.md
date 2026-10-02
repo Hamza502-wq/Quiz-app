@@ -60,7 +60,40 @@ docker compose run --rm seed    # sample data; safe to run again
 On Windows PowerShell, use `copy .env.example .env`, and for local testing generate each secret with
 `-join ((1..32) | % { '{0:x2}' -f (Get-Random -Maximum 256) })`.
 
-**See the website without a backend:** the [`netlify.toml`](netlify.toml) publishes the customer website as a self-contained demo (sample stores, simulated deliveries, code `123456`). Connect the repository in Netlify, or run `npm run build:demo -w @doorstep/customer-web` in `web/` and drag `web/customer-web/out` onto [Netlify Drop](https://app.netlify.com/drop). Details in [`web/README.md`](web/README.md).
+## Deploy on Netlify (whole platform, one site)
+
+[`netlify.toml`](netlify.toml) and [`scripts/netlify-build.sh`](scripts/netlify-build.sh) put everything on a single Netlify site, with the data in PostgreSQL (e.g. Supabase):
+
+| Path | What |
+| --- | --- |
+| `/` | Customer website (installable on phones as an app) |
+| `/vendor/` | Shop dashboard: sign up, list a shop, manage menu and orders |
+| `/admin/` | Admin panel |
+| `/rider/` | Rider app (the Flutter app built for the web; prebuilt in `web/rider-web`) |
+| `/api/*` | The DoorStep API on Netlify Functions, plus a once-a-minute `jobs` function (dispatch, payment checks, payouts) |
+
+How this differs from running the API on a server:
+* **Accounts use phone number + password** (sign-up for customers, shops and riders) until an SMS provider is connected; SMS-code sign-in then works as well (`SMS_PROVIDER=twilio`, and `NEXT_PUBLIC_SMS_SIGN_IN=true` for the web apps).
+* **Payments are simulated** until Paynow credentials are added (`PAYNOW_*`); the apps say so at checkout.
+* **No live sockets on serverless:** screens refresh every few seconds instead (orders board, tracking, chat, rider requests).
+* **Uploaded images are stored in the database** (`UPLOAD_STORAGE=database`).
+
+Setup:
+1. Create a PostgreSQL database, apply the schema and the baseline data (roles, categories, delivery zones, exchange rate). From `backend/`: `DATABASE_URL=… npx prisma migrate deploy`, then run [`prisma/production-baseline.sql`](backend/prisma/production-baseline.sql) (e.g. in Supabase's SQL editor). No stores or users are created.
+2. In Netlify, import the GitHub repository (Site configuration → Build & deploy → Link repository). Build settings come from `netlify.toml`.
+3. Add the environment variable **`DATABASE_URL`** (for Supabase: *Connect → Transaction pooler*, port 6543). Everything else has production defaults (see [`backend/src/netlify-env.ts`](backend/src/netlify-env.ts)); signing secrets are derived from `DATABASE_URL` unless `JWT_ACCESS_SECRET` / `OTP_SECRET` are set.
+4. Optional: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Google Maps: location picker, live map, rider navigation; redeploy after adding it), `PAYNOW_*`, `TWILIO_*`, `FCM_*`.
+5. **First admin:** sign up on the site, then give that account the ADMIN role in the database:
+   ```sql
+   INSERT INTO user_roles (user_id, role_id)
+   SELECT u.id, r.id FROM users u, roles r WHERE u.phone = '+26377XXXXXXX' AND r.name = 'ADMIN'
+   ON CONFLICT DO NOTHING;
+   ```
+   Sign in at `/admin/` with the same phone number and password. More admins can be added from the admin panel.
+
+After changing `apps/rider_app` or `packages/doorstep_core`, run `scripts/build-rider-web.sh` (needs Flutter) and commit `web/rider-web`; Netlify's build has no Flutter SDK. The rider web app loads Flutter's renderer (CanvasKit) from Google's CDN.
+
+**Website demo without a backend:** `npm run build:demo -w @doorstep/customer-web` (in `web/`) still exports a self-contained demo of the customer website (sample stores, simulated deliveries, code `123456`) that can be dragged onto [Netlify Drop](https://app.netlify.com/drop). Details in [`web/README.md`](web/README.md).
 
 ### Seeded test accounts
 
@@ -194,7 +227,7 @@ Backend tests default to `postgresql://postgres:postgres@localhost:5432/doorstep
 * `PUBLIC_BASE_URL` must be the public HTTPS URL of the API so Paynow can reach `/api/v1/payments/paynow/result`.
 * Configure `SMS_PROVIDER=twilio` (SMS + WhatsApp sender), FCM service-account credentials, Paynow USD/ZWG integrations, and restricted Google Maps keys (server key for the API, browser key for the website and dashboards, Android/iOS keys for apps).
 * Run background jobs on exactly one API instance (`ENABLE_JOBS=true` there, `false` elsewhere). Socket.IO and the in-memory PIN attempt limiter assume a single instance — add the Socket.IO Redis adapter before scaling out.
-* Uploaded images are stored on local disk (`UPLOAD_DIR`); mount a persistent volume or move to object storage. ID documents and delivery photos are private and served only to admins, their owner, and (for proof photos) the order's customer.
+* Uploaded images are stored on local disk (`UPLOAD_DIR`) by default; mount a persistent volume, or set `UPLOAD_STORAGE=database` to keep them in PostgreSQL (the Netlify setup does this). ID documents and delivery photos are private and served only to admins, their owner, and (for proof photos) the order's customer.
 * Dashboards keep tokens in `localStorage`; serve them over HTTPS with a strict CSP.
 * Set `TRUST_PROXY` to the number of reverse proxies so rate limiting sees real client IPs.
 * Replace the Android debug signing fallback with `android/key.properties`, and set the Firebase and Maps keys for release builds.

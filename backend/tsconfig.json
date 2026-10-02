@@ -17,5 +17,5 @@
     "sourceMap": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts", "prisma.config.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "prisma.config.ts", "tests/**/*.ts", "netlify/**/*.ts"]
 }

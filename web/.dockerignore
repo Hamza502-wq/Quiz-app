@@ -3,3 +3,5 @@
 **/.env
 **/.env.local
 **/*.tsbuildinfo
+rider-web
+**/out

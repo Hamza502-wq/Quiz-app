@@ -5,3 +5,9 @@ next-env.d.ts
 *.tsbuildinfo
 .env*.local
 .env
+
+# Copied from shared/pwa by copy-assets.mjs
+public/sw.js
+public/icon-192.png
+public/icon-512.png
+public/icon-maskable-512.png

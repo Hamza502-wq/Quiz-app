@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LoadingBlock, LoginPage, useAuth } from '@doorstep/web-shared';
+import { LoadingBlock, LoginPage, appLinks, useAuth } from '@doorstep/web-shared';
+import { DEMO_MODE } from '@/lib/demo/mode';
 
 /** Only allow same-site relative redirects after sign-in. */
 function safeNext(value: string | null): string {
@@ -35,14 +36,33 @@ function LoginScreen() {
     <LoginPage
       title="Sign in to DoorStep"
       subtitle="Order from local stores and track your delivery live."
-      modes={['otp']}
-      allowSignup
-      signupNote="New here? Your account is created when you verify your number."
+      // The standalone demo signs in with its built-in SMS code only.
+      allowSignup={!DEMO_MODE}
+      modes={DEMO_MODE ? ['otp'] : undefined}
+      signupNote={DEMO_MODE ? 'New here? Your account is created when you verify your number.' : undefined}
+      initialView={params.get('signup') === '1' && !DEMO_MODE ? 'signup' : 'signin'}
       onSuccess={(u) => {
         signedInHere.current = true;
-        // New customers add their name first.
+        // Accounts created with an SMS code add their name first.
         router.replace(u.name ? next : `/account?welcome=1&next=${encodeURIComponent(next)}`);
       }}
+      footer={
+        <p className="text-center text-sm text-muted">
+          Own a shop?{' '}
+          <a href={appLinks.vendor} className="font-semibold text-brand hover:underline">
+            Sell on DoorStep
+          </a>
+          {appLinks.rider ? (
+            <>
+              {' '}
+              · Ride with us?{' '}
+              <a href={appLinks.rider} className="font-semibold text-brand hover:underline">
+                Become a rider
+              </a>
+            </>
+          ) : null}
+        </p>
+      }
     />
   );
 }

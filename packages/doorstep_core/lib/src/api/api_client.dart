@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -110,12 +111,30 @@ class ApiClient {
 
   Future<dynamic> delete(String path, {Object? body}) => _send(() => _dio.delete<dynamic>(path, data: body));
 
-  /// Uploads an image file. `kind`: product | vendor | avatar | document | proof.
-  Future<UploadResult> uploadImage(String filePath, String kind) async {
-    final form = FormData.fromMap({'file': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last)});
+  /// Uploads an image. `kind`: product | vendor | avatar | document | proof.
+  /// Takes bytes so it works on the web as well as on phones.
+  Future<UploadResult> uploadImage(Uint8List bytes, String filename, String kind, {String? mimeType}) async {
+    final type = mimeType ?? _imageMimeType(filename);
+    final form = FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: filename, contentType: DioMediaType.parse(type))});
     final data = await _send(() => _dio.post<dynamic>('/uploads', data: form, queryParameters: {'kind': kind}));
     final map = data as Map<String, dynamic>;
     return UploadResult(url: map['url'] as String, thumbUrl: map['thumbUrl'] as String);
+  }
+
+  static String _imageMimeType(String filename) {
+    final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      default:
+        return 'image/jpeg';
+    }
   }
 
   /// Headers for loading private images (delivery proof, documents).

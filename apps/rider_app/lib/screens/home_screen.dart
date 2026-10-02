@@ -91,7 +91,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (online && !socketConnected)
+            if (online && AppConfig.realtime && !socketConnected)
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: OfflineBanner(visible: true, message: 'Weak connection — requests may be delayed. Location still sent when possible.'),

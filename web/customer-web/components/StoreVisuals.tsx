@@ -1,5 +1,7 @@
 import { Package, Pill, ShoppingBasket, Star, Store, UtensilsCrossed } from 'lucide-react';
 import { cn } from '@doorstep/web-shared';
+import { categoryPhoto } from '@/lib/photos';
+import { Photo } from './Photo';
 
 const CATEGORY_ICONS: Record<string, typeof Store> = {
   food: UtensilsCrossed,
@@ -25,15 +27,19 @@ export function StoreCover({
   className?: string;
   closed?: boolean;
 }) {
+  // Stores without their own cover show a photo for their category.
+  const photo = coverUrl ?? categoryPhoto(categorySlug);
+  const placeholder = (
+    <div className="flex h-full w-full items-center justify-center">
+      <CategoryIcon slug={categorySlug} className="h-12 w-12 text-white/80" />
+    </div>
+  );
   return (
     <div className={cn('relative overflow-hidden bg-gradient-to-br from-brand to-brand-dark', className)}>
-      {coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={coverUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+      {photo ? (
+        <Photo src={photo} className="h-full w-full object-cover" fallback={placeholder} />
       ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <CategoryIcon slug={categorySlug} className="h-12 w-12 text-white/80" />
-        </div>
+        placeholder
       )}
       {closed ? (
         <div className="absolute inset-0 flex items-center justify-center bg-black/45">

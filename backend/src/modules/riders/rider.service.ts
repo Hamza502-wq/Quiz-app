@@ -9,7 +9,7 @@ import { isoWeekKey, localParts, startOfLocalDay, startOfLocalWeek } from '../..
 import { emitTo, rooms, ServerEvents } from '../../realtime/io';
 import { getSettings } from '../settings/settings.service';
 import { ensureWallet, getWalletSummary, postWalletEntry } from '../wallet/wallet.service';
-import { notifyAdmins } from '../notifications/notification.service';
+import { notifyAdminsAsync } from '../notifications/notification.service';
 import { ACTIVE_STATUSES, orderInclude, presentOrder } from '../orders/order.presenter';
 import { transitionOrder } from '../orders/order.service';
 import { estimateEtaMinutes } from '../orders/tracking.service';
@@ -67,7 +67,7 @@ export async function registerRider(userId: string, input: RiderRegistration) {
     await ensureWallet(tx, r.id);
     return r;
   });
-  void notifyAdmins({
+  notifyAdminsAsync({
     type: 'RIDER_PENDING',
     title: 'Rider awaiting approval',
     body: `${name ?? 'A new rider'} (${input.vehiclePlate}) submitted documents for review.`,

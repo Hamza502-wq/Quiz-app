@@ -77,6 +77,8 @@ class RiderProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const Divider(),
+                const ChangePasswordTile(),
+                const Divider(),
                 ListTile(
                   leading: const Icon(Icons.logout_rounded, color: DsColors.red),
                   title: const Text('Sign out', style: TextStyle(color: DsColors.red)),

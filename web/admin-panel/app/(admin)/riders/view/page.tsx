@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Ban, Banknote, CheckCircle2, Gift, XCircle } from 'lucide-react';
 import {
   ApprovalBadge,
@@ -70,9 +70,17 @@ interface RiderDetail {
 }
 
 export default function RiderDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <RiderDetailView />
+    </Suspense>
+  );
+}
+
+function RiderDetailView() {
+  const id = useSearchParams().get('id') ?? '';
   const toast = useToast();
-  const { data: r, error, loading, reload } = useApi<RiderDetail>(`/admin/riders/${id}`);
+  const { data: r, error, loading, reload } = useApi<RiderDetail>(id ? `/admin/riders/${encodeURIComponent(id)}` : null);
   const [statusModal, setStatusModal] = useState<ApprovalStatus | null>(null);
   const [reason, setReason] = useState('');
   const [cashLimit, setCashLimit] = useState('');
@@ -273,7 +281,7 @@ export default function RiderDetailPage() {
         }
       >
         {statusModal === 'APPROVED' ? (
-          <p className="text-sm">Confirm the ID, licence and vehicle match. The rider is notified by SMS and can go online.</p>
+          <p className="text-sm">Confirm the ID, licence and vehicle match. The rider is notified and can then go online.</p>
         ) : (
           <Field label="Reason (sent to the rider)">
             <Textarea value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} />

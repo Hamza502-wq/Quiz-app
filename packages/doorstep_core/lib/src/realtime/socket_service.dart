@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../api/api_client.dart';
+import '../config.dart';
 
 /// Authenticated Socket.IO connection to the DoorStep API.
 ///
@@ -19,7 +20,8 @@ class SocketService extends ChangeNotifier {
   bool get isConnected => _connected;
 
   void connect() {
-    if (_socket != null) return;
+    // Without realtime, isConnected stays false and screens poll the REST API.
+    if (_socket != null || !AppConfig.realtime) return;
     final socket = io.io(
       api.baseUrl,
       io.OptionBuilder()

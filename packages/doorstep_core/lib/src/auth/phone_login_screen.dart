@@ -5,15 +5,17 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_exception.dart';
+import '../config.dart';
 import '../theme.dart';
 import '../utils/format.dart';
 import '../widgets/brand.dart';
 import '../widgets/feedback.dart';
 import 'auth_controller.dart';
 
-/// Phone number + SMS code sign-in, shared by the customer and rider apps.
-/// On success the [AuthController] switches to signed-in and the app's
-/// auth gate shows the home screen.
+/// Sign-in shared by the customer and rider apps: phone number + SMS code, or
+/// (while SMS sign-in is off, see [AppConfig.smsSignIn]) phone number +
+/// password with a "create account" form. On success the [AuthController]
+/// switches to signed-in and the app's auth gate shows the home screen.
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key, required this.title, required this.subtitle, this.askName = true});
 
@@ -101,6 +103,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppConfig.smsSignIn) return _PasswordLogin(title: widget.title, subtitle: widget.subtitle);
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: DsColors.white,
@@ -205,6 +208,186 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     style: TextStyle(color: DsColors.muted, fontSize: 12),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Phone number + password sign-in, with a "create account" form.
+class _PasswordLogin extends StatefulWidget {
+  const _PasswordLogin({required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  State<_PasswordLogin> createState() => _PasswordLoginState();
+}
+
+class _PasswordLoginState extends State<_PasswordLogin> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _signUp = false;
+  bool _busy = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  String? _validate() {
+    if (_signUp && _name.text.trim().length < 2) return 'Enter your name';
+    if (!looksLikePhone(_phone.text)) return 'Enter a valid phone number, e.g. 0771 234 567';
+    if (_password.text.isEmpty) return 'Enter your password';
+    if (_signUp) {
+      final p = _password.text;
+      if (p.length < 8 || !RegExp(r'[A-Za-z]').hasMatch(p) || !RegExp(r'\d').hasMatch(p)) {
+        return 'Use at least 8 characters, with a letter and a number';
+      }
+      if (p != _confirm.text) return 'The two passwords do not match';
+    }
+    return null;
+  }
+
+  Future<void> _submit() async {
+    final problem = _validate();
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final auth = context.read<AuthController>();
+    try {
+      if (_signUp) {
+        await auth.register(name: _name.text.trim(), phone: _phone.text.trim(), password: _password.text);
+      } else {
+        await auth.loginWithPassword(_phone.text.trim(), _password.text);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: DsColors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Center(child: BrandLogo(height: 150)),
+                    const SizedBox(height: 16),
+                    Text(_signUp ? 'Create your account' : widget.title, textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
+                    const SizedBox(height: 6),
+                    Text(widget.subtitle, textAlign: TextAlign.center, style: const TextStyle(color: DsColors.muted)),
+                    const SizedBox(height: 12),
+                    const Center(child: FlagStripe()),
+                    const SizedBox(height: 28),
+                    if (_signUp) ...[
+                      TextField(
+                        controller: _name,
+                        enabled: !_busy,
+                        textCapitalization: TextCapitalization.words,
+                        autofillHints: const [AutofillHints.name],
+                        decoration: const InputDecoration(labelText: 'Your name', prefixIcon: Icon(Icons.person_outline_rounded)),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    TextField(
+                      controller: _phone,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.phone,
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]'))],
+                      decoration: const InputDecoration(
+                        labelText: 'Phone number',
+                        hintText: '0771 234 567',
+                        prefixIcon: Icon(Icons.phone_iphone_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _password,
+                      enabled: !_busy,
+                      obscureText: _obscure,
+                      autofillHints: [_signUp ? AutofillHints.newPassword : AutofillHints.password],
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        helperText: _signUp ? 'At least 8 characters, with a letter and a number' : null,
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                          tooltip: _obscure ? 'Show password' : 'Hide password',
+                        ),
+                      ),
+                      onSubmitted: (_) => _signUp ? null : _submit(),
+                    ),
+                    if (_signUp) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _confirm,
+                        enabled: !_busy,
+                        obscureText: _obscure,
+                        autofillHints: const [AutofillHints.newPassword],
+                        decoration: const InputDecoration(labelText: 'Confirm password', prefixIcon: Icon(Icons.lock_outline_rounded)),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: DsColors.redLight, borderRadius: BorderRadius.circular(12)),
+                        child: Text(_error!, style: const TextStyle(color: DsColors.red)),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    PrimaryButton(label: _signUp ? 'Create account' : 'Sign in', loading: _busy, onPressed: _submit),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() {
+                                _signUp = !_signUp;
+                                _error = null;
+                                _password.clear();
+                                _confirm.clear();
+                              }),
+                      child: Text(_signUp ? 'Already have an account? Sign in' : 'New to DoorStep? Create an account'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'By continuing you agree to the DoorStep Terms and Privacy Policy.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: DsColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

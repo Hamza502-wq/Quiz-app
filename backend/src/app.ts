@@ -9,7 +9,7 @@ import { prisma } from './lib/prisma';
 import { apiLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { buildOpenApiDocument } from './docs/openapi';
-import { PUBLIC_DIR } from './modules/uploads/upload.service';
+import { PUBLIC_DIR, publicFilePath, readStoredFile } from './modules/uploads/upload.service';
 import { authRouter } from './modules/auth/auth.routes';
 import { notificationRouter } from './modules/notifications/notification.routes';
 import { uploadRouter } from './modules/uploads/upload.routes';
@@ -58,7 +58,24 @@ export function createApp(): Express {
     }
   });
 
-  app.use('/uploads/public', express.static(PUBLIC_DIR, { maxAge: '7d', immutable: true, index: false, fallthrough: false }));
+  if (env.UPLOAD_STORAGE === 'database') {
+    app.get('/uploads/public/:kind/:file', async (req, res, next) => {
+      try {
+        const relative = publicFilePath(req.params.kind, req.params.file);
+        const stored = relative ? await readStoredFile(relative) : null;
+        if (!stored) {
+          res.status(404).json({ error: { code: 'NOT_FOUND', message: 'File not found' } });
+          return;
+        }
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        res.type(stored.mimeType).send(stored.data);
+      } catch (err) {
+        next(err);
+      }
+    });
+  } else {
+    app.use('/uploads/public', express.static(PUBLIC_DIR, { maxAge: '7d', immutable: true, index: false, fallthrough: false }));
+  }
 
   app.get('/api/docs.json', (_req, res) => {
     res.json(buildOpenApiDocument());
@@ -74,6 +91,13 @@ export function createApp(): Express {
   app.use('/api/v1/payments', paymentRouter);
   app.use(express.json({ limit: '1mb' }));
 
+  // What the apps need to know about this deployment's integrations.
+  app.get('/api/v1/meta', (_req, res) => {
+    res.json({
+      paymentsSimulated: env.PAYMENTS_MOCK,
+      smsSignIn: !(env.isProduction && env.SMS_PROVIDER === 'console'),
+    });
+  });
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/notifications', notificationRouter);
   app.use('/api/v1/uploads', uploadRouter);

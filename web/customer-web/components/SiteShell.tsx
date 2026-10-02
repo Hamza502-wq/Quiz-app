@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ClipboardList, MapPin, Package, ShoppingBag, UserRound } from 'lucide-react';
-import { FlagStripe, cn, useAuth } from '@doorstep/web-shared';
+import { FlagStripe, InstallAppButton, appLinks, cn, useAuth } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
 import { DeliverToModal } from './DeliverToModal';
@@ -115,7 +115,7 @@ function SiteHeader() {
 function SiteFooter() {
   return (
     <footer className="mt-16 bg-ink text-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <p className="text-lg font-bold">
             Door<span className="text-brand">Step</span> Zimbabwe
@@ -144,9 +144,36 @@ function SiteFooter() {
           </ul>
         </div>
         <div className="text-sm">
+          <p className="font-semibold">Work with us</p>
+          <ul className="mt-2 space-y-1.5 text-white/70">
+            <li>
+              <a href={`${appLinks.vendor}login?signup=1`} className="hover:text-white">
+                Sell on DoorStep
+              </a>
+            </li>
+            <li>
+              <a href={appLinks.vendor} className="hover:text-white">
+                Shop sign in
+              </a>
+            </li>
+            {appLinks.rider ? (
+              <li>
+                <a href={appLinks.rider} className="hover:text-white">
+                  Ride with DoorStep
+                </a>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+        <div className="text-sm">
           <p className="font-semibold">Pay your way</p>
           <p className="mt-2 text-white/70">EcoCash · OneMoney · Card · Cash on delivery</p>
           <p className="mt-1 text-white/70">Prices in US dollars or ZiG</p>
+        </div>
+        <div className="text-sm">
+          <p className="font-semibold">Get the app</p>
+          <p className="mt-2 text-white/70">Add DoorStep to your phone&apos;s home screen — no app store needed.</p>
+          <InstallAppButton appName="DoorStep" className="mt-3" />
         </div>
       </div>
       <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">© {new Date().getFullYear()} DoorStep Zimbabwe</div>

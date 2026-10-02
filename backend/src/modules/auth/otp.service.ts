@@ -1,6 +1,6 @@
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
-import { badRequest, tooMany } from '../../lib/errors';
+import { AppError, badRequest, tooMany } from '../../lib/errors';
 import { hmacSha256, randomDigits, safeEqual } from '../../lib/random';
 import { sendMessage } from '../notifications/sms.provider';
 
@@ -18,6 +18,10 @@ export interface OtpRequestResult {
 }
 
 export async function requestOtp(phone: string, ip?: string): Promise<OtpRequestResult> {
+  // In production the console provider only writes to the log, so nobody would receive the code.
+  if (env.isProduction && env.SMS_PROVIDER === 'console') {
+    throw new AppError(503, 'Sign-in codes by SMS are not available yet. Sign in with your password.', 'SMS_UNAVAILABLE');
+  }
   const latest = await prisma.otpCode.findFirst({ where: { phone }, orderBy: { createdAt: 'desc' } });
   if (latest && Date.now() - latest.createdAt.getTime() < RESEND_COOLDOWN_MS) {
     throw tooMany('Please wait 30 seconds before requesting another code.');

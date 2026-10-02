@@ -41,7 +41,7 @@ class PendingScreen extends StatelessWidget {
                     ? (rider.rejectionReason ?? 'Your documents could not be verified.')
                     : suspended
                         ? 'Please contact DoorStep support to resolve this.'
-                        : 'We are reviewing your documents. You’ll get an SMS as soon as you’re approved — usually within 24 hours.',
+                        : 'We are reviewing your documents. You’ll be notified as soon as you’re approved — usually within 24 hours.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: DsColors.muted),
               ),

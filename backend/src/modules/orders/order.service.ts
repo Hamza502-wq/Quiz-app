@@ -30,6 +30,7 @@ import {
   STATUS_LABELS,
   type OrderViewer,
 } from './order.presenter';
+import { runInBackground } from '../../lib/background';
 
 // ───────────────────────────── Drop-off resolution ─────────────────────────────
 
@@ -573,7 +574,7 @@ export async function transitionOrder(orderId: string, to: OrderStatus, opts: Tr
         body: `${order.vendor?.name ?? 'The store'} is preparing order ${code}${order.prepMinutes ? ` (~${order.prepMinutes} min)` : ''}.`,
         data: { orderId },
       });
-      void startAutoDispatch(orderId);
+      runInBackground(startAutoDispatch(orderId), 'dispatch');
       break;
     case 'READY_FOR_PICKUP':
       if (order.rider) {
@@ -662,7 +663,7 @@ async function onOrderPlaced(orderId: string, publish = true): Promise<void> {
     const order = await prisma.order.findUnique({ where: { id: orderId }, include: { vendor: true, items: true } });
     if (!order) return;
     if (order.type === 'PARCEL') {
-      void startAutoDispatch(orderId);
+      runInBackground(startAutoDispatch(orderId), 'dispatch');
       return;
     }
     if (order.vendor) {
