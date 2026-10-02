@@ -75,7 +75,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       try {
         final data = await context.read<ApiClient>().post('/orders/quote', body: body);
         if (!mounted || seq != _quoteSeq) return;
-        setState(() => _quote = Quote.fromJson(data as Map<String, dynamic>));
+        final quote = Quote.fromJson(data as Map<String, dynamic>);
+        setState(() {
+          _quote = quote;
+          // Riders can only carry so much cash: larger orders are paid online.
+          if (!quote.cashAllowed && _method == 'CASH') _method = 'ECOCASH';
+        });
       } catch (e) {
         if (!mounted || seq != _quoteSeq) return;
         setState(() {
@@ -249,7 +254,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             child: Column(
               children: [
-                PaymentMethodSelector(value: _method, onChanged: (m) => setState(() => _method = m)),
+                PaymentMethodSelector(
+                  value: _method,
+                  onChanged: (m) => setState(() => _method = m),
+                  allowCash: _quote?.cashAllowed ?? true,
+                  cashLimitCents: _quote?.cashLimitCents,
+                ),
                 if (isMobile)
                   TextField(
                     controller: _payerPhone,

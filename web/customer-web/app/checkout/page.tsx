@@ -62,6 +62,11 @@ function Checkout() {
   const [method, setMethod] = useState<PaymentMethod>('ECOCASH');
   const [payerPhone, setPayerPhone] = useState(user?.phone ?? '');
   const [quote, setQuote] = useState<Quote | null>(null);
+  // Riders can only carry so much cash: larger orders are paid online.
+  const cashAllowed = quote?.cashAllowed !== false;
+  useEffect(() => {
+    if (!cashAllowed && method === 'CASH') setMethod('ECOCASH');
+  }, [cashAllowed, method]);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -225,15 +230,20 @@ function Checkout() {
                   type="button"
                   onClick={() => setMethod(o.value)}
                   aria-pressed={method === o.value}
+                  disabled={o.value === 'CASH' && !cashAllowed}
                   className={cn(
-                    'flex items-start gap-3 rounded-xl border p-3 text-left',
+                    'flex items-start gap-3 rounded-xl border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60',
                     method === o.value ? 'border-brand bg-brand-light/40 ring-2 ring-brand/20' : 'border-line hover:border-brand',
                   )}
                 >
                   <o.icon className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
                   <span>
                     <span className="block font-semibold">{o.label}</span>
-                    <span className="block text-xs text-muted">{o.hint}</span>
+                    <span className="block text-xs text-muted">
+                      {o.value === 'CASH' && !cashAllowed && quote?.cashLimitCents !== undefined
+                        ? `Only for orders up to ${formatMoney(quote.cashLimitCents)}. Please pay online.`
+                        : o.hint}
+                    </span>
                   </span>
                 </button>
               ))}

@@ -4,7 +4,7 @@ import { defineRoute, idParams, latLng, paged, pagination } from '../../lib/rout
 import { prisma } from '../../lib/prisma';
 import { imageUrl, optionalTrimmed, trimmed, zwPlateSchema } from '../../lib/validation';
 import { ensureRole } from '../auth/auth.service';
-import { acceptOffer, declineOffer, getOfferPayload, riderReleaseOrder } from '../dispatch/dispatch.service';
+import { acceptOffer, declineOffer, getOfferPayload, riderReleaseOrder, sweepDispatchOnCheckIn } from '../dispatch/dispatch.service';
 import { orderInclude, presentOrder, ACTIVE_STATUSES } from '../orders/order.presenter';
 import { getOrderForUser } from '../orders/order.service';
 import { getWalletSummary } from '../wallet/wallet.service';
@@ -78,7 +78,11 @@ defineRoute(riderRouter, {
   summary: 'Rider home: profile, approval status, wallet, active order, pending offer, stats',
   auth: 'required',
   roles,
-  handler: ({ user }) => getRiderDashboard(user.id),
+  handler: async ({ user }) => {
+    // The rider app polls this; on serverless hosting it also drives dispatch.
+    await sweepDispatchOnCheckIn();
+    return getRiderDashboard(user.id);
+  },
 });
 
 defineRoute(riderRouter, {
@@ -112,8 +116,15 @@ defineRoute(riderRouter, {
   auth: 'required',
   roles,
   body: z.object({ online: z.boolean(), lat: latLng.lat.optional(), lng: latLng.lng.optional() }),
-  handler: ({ body, user }) =>
-    setOnline(user.id, body.online, body.lat !== undefined && body.lng !== undefined ? { lat: body.lat, lng: body.lng } : undefined),
+  handler: async ({ body, user }) => {
+    const result = await setOnline(
+      user.id,
+      body.online,
+      body.lat !== undefined && body.lng !== undefined ? { lat: body.lat, lng: body.lng } : undefined,
+    );
+    if (body.online) await sweepDispatchOnCheckIn();
+    return result;
+  },
 });
 
 defineRoute(riderRouter, {
@@ -132,6 +143,7 @@ defineRoute(riderRouter, {
   handler: async ({ body, user }) => {
     const rider = await requireRider(user.id, { approved: true });
     await updateRiderLocation(rider.id, body);
+    await sweepDispatchOnCheckIn();
     return { ok: true };
   },
 });
@@ -146,6 +158,7 @@ defineRoute(riderRouter, {
   roles,
   handler: async ({ user }) => {
     const rider = await requireRider(user.id, { approved: true });
+    await sweepDispatchOnCheckIn();
     const offer = await prisma.dispatchOffer.findFirst({
       where: { riderId: rider.id, status: 'OFFERED', expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },

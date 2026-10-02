@@ -2,10 +2,13 @@ import 'package:doorstep_core/doorstep_core.dart';
 import 'package:flutter/material.dart';
 
 class PaymentMethodSelector extends StatelessWidget {
-  const PaymentMethodSelector({super.key, required this.value, required this.onChanged, this.allowCash = true});
+  const PaymentMethodSelector({super.key, required this.value, required this.onChanged, this.allowCash = true, this.cashLimitCents});
   final String value;
   final ValueChanged<String> onChanged;
   final bool allowCash;
+
+  /// When cash is not allowed because of the riders' cash limit, explains it.
+  final int? cashLimitCents;
 
   static const _options = [
     ('ECOCASH', 'EcoCash', Icons.phone_android_rounded, 'USSD prompt on your phone'),
@@ -52,6 +55,22 @@ class PaymentMethodSelector extends StatelessWidget {
                 ),
               ),
             ),
+        if (!allowCash && cashLimitCents != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: DsColors.muted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Cash on delivery is for orders up to ${formatMoney(cashLimitCents!)}. Please pay online.',
+                    style: const TextStyle(fontSize: 12, color: DsColors.muted),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

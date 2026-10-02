@@ -467,8 +467,22 @@ describe('cash order: order → accept → auto-dispatch → deliver → wallet'
 });
 
 describe('cash limit enforcement', () => {
-  it('blocks riders at their cash limit from cash orders', async () => {
+  it('offers cash on delivery only up to the cash limit', async () => {
     await updateSettings({ defaultCashLimitCents: 500 }, world.admin.id);
+    const body = { vendorId: world.vendor.id, items: [{ productId: world.sadza.id, quantity: 2 }], addressId, tipCents: 0 };
+    const quote = await api().post('/api/v1/orders/quote').set(auth(customer)).send(body);
+    expect(quote.body).toMatchObject({ cashAllowed: false, cashLimitCents: 500 });
+    const cash = await api().post('/api/v1/orders').set(auth(customer)).send({ ...body, paymentMethod: 'CASH' });
+    expect(cash.status).toBe(400);
+    expect(cash.body.error.message).toMatch(/Cash on delivery is available for orders up to US\$5\.00/);
+    await updateSettings({ defaultCashLimitCents: 5000 }, world.admin.id);
+    const allowed = await api().post('/api/v1/orders/quote').set(auth(customer)).send(body);
+    expect(allowed.body).toMatchObject({ cashAllowed: true, cashLimitCents: 5000 });
+  });
+
+  it('blocks riders at their cash limit from cash orders', async () => {
+    // This rider's own limit is lower than the platform default.
+    await prisma.rider.update({ where: { id: world.rider.id }, data: { cashLimitCents: 500 } });
     const res = await api()
       .post('/api/v1/orders')
       .set(auth(customer))
@@ -484,8 +498,11 @@ describe('cash limit enforcement', () => {
     const manual = await api().post(`/api/v1/admin/orders/${orderId}/assign`).set(auth(admin)).send({ riderId: world.rider.id });
     expect(manual.status).toBe(409);
     expect(manual.body.error.message).toMatch(/Cash limit/);
+    const auto = await api().post(`/api/v1/admin/orders/${orderId}/auto-assign`).set(auth(admin));
+    expect(auto.body).toMatchObject({ offered: false });
+    expect(auto.body.message).toMatch(/above their cash limit/);
 
-    await updateSettings({ defaultCashLimitCents: 5000 }, world.admin.id);
+    await prisma.rider.update({ where: { id: world.rider.id }, data: { cashLimitCents: null } });
     const ok = await api().post(`/api/v1/admin/orders/${orderId}/assign`).set(auth(admin)).send({ riderId: world.rider.id });
     expect(ok.status).toBe(200);
     expect(ok.body.rider.id).toBe(world.rider.id);
@@ -497,6 +514,41 @@ describe('cash limit enforcement', () => {
     expect(cancel.body.status).toBe('CANCELLED');
     // Declined recently → not re-offered; cancelled → offers withdrawn.
     expect(await prisma.dispatchOffer.count({ where: { orderId, status: 'OFFERED' } })).toBe(0);
+  });
+});
+
+describe('dispatch without the scheduled job', () => {
+  it('offers a waiting order when a rider checks in, and only once under concurrency', async () => {
+    // Nobody is online when the store accepts, so the first dispatch finds no rider.
+    await prisma.rider.update({ where: { id: world.rider.id }, data: { isOnline: false } });
+    const res = await api()
+      .post('/api/v1/orders')
+      .set(auth(customer))
+      .send({ vendorId: world.vendor.id, items: [{ productId: world.sadza.id, quantity: 1 }], addressId, tipCents: 0, paymentMethod: 'CASH' });
+    expect(res.status).toBe(201);
+    const orderId = res.body.order.id;
+    await api().post(`/api/v1/vendor/orders/${orderId}/accept`).set(auth(vendor)).send({ prepMinutes: 10 }).expect(200);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(await prisma.dispatchOffer.count({ where: { orderId } })).toBe(0);
+
+    // Concurrent dispatchers create a single offer.
+    await prisma.rider.update({ where: { id: world.rider.id }, data: { isOnline: true, locationUpdatedAt: new Date() } });
+    const { offerToNextRider, resetCheckInSweepThrottle } = await import('../src/modules/dispatch/dispatch.service');
+    const ids = await Promise.all([offerToNextRider(orderId), offerToNextRider(orderId), offerToNextRider(orderId)]);
+    expect(new Set(ids.filter(Boolean)).size).toBe(1);
+    expect(await prisma.dispatchOffer.count({ where: { orderId, status: 'OFFERED' } })).toBe(1);
+
+    // The offer times out; the rider app's next check-in passes it on (here: back to the same, only rider later).
+    await prisma.dispatchOffer.updateMany({ where: { orderId }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await prisma.dispatchOffer.updateMany({ where: { orderId }, data: { createdAt: new Date(Date.now() - 11 * 60_000) } });
+    resetCheckInSweepThrottle();
+    const me = await api().get('/api/v1/rider/me').set(auth(rider));
+    expect(me.status).toBe(200);
+    expect(me.body.pendingOffer?.order.id).toBe(orderId);
+    expect(await prisma.dispatchOffer.count({ where: { orderId, status: 'EXPIRED' } })).toBe(1);
+    expect(await prisma.dispatchOffer.count({ where: { orderId, status: 'OFFERED' } })).toBe(1);
+
+    await api().post(`/api/v1/admin/orders/${orderId}/cancel`).set(auth(admin)).send({ reason: 'Test cleanup' }).expect(200);
   });
 });
 

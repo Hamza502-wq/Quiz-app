@@ -1,4 +1,5 @@
 import type { Order, OrderStatus } from '@prisma/client';
+import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
 import { badRequest, conflict, notFound } from '../../lib/errors';
@@ -156,14 +157,27 @@ export async function offerToNextRider(orderId: string): Promise<string | null> 
   const next = candidates[0];
   if (!next) return null;
 
-  const offer = await prisma.dispatchOffer.create({
-    data: {
-      orderId,
-      riderId: next.riderId,
-      distanceKm: next.distanceKm,
-      expiresAt: new Date(Date.now() + settings.dispatchOfferTimeoutSec * 1000),
-    },
+  // Several requests can dispatch at once (rider check-ins, the scheduled sweep): lock the
+  // order, then the rider, so an order gets one open offer and a rider one request at a time.
+  const offer = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${next.riderId} FOR UPDATE`;
+    const now = new Date();
+    const open = await tx.dispatchOffer.findFirst({ where: { orderId, status: 'OFFERED', expiresAt: { gt: now } } });
+    if (open) return { existingId: open.id };
+    const riderBusy = await tx.dispatchOffer.findFirst({ where: { riderId: next.riderId, status: 'OFFERED', expiresAt: { gt: now } } });
+    if (riderBusy) return null;
+    return tx.dispatchOffer.create({
+      data: {
+        orderId,
+        riderId: next.riderId,
+        distanceKm: next.distanceKm,
+        expiresAt: new Date(now.getTime() + settings.dispatchOfferTimeoutSec * 1000),
+      },
+    });
   });
+  if (!offer) return null;
+  if ('existingId' in offer) return offer.existingId;
   const payload = await offerPayload(offer.id);
   emitTo(rooms.rider(next.riderId), ServerEvents.dispatchOffer, payload);
   notifyAsync({
@@ -380,6 +394,33 @@ export async function cancelOpenOffers(orderId: string): Promise<void> {
  * Periodic job: expires unanswered offers and re-offers them, and retries
  * dispatch for orders still waiting for a rider.
  */
+const CHECK_IN_SWEEP_EVERY_MS = 5_000;
+let lastCheckInSweep = 0;
+let checkInSweep: Promise<void> | null = null;
+
+/**
+ * Without the in-process scheduler (serverless hosting, where Netlify also runs scheduled
+ * functions only on the production site), rider check-ins drive dispatch: waiting orders
+ * are offered and timed-out offers passed on, at most every few seconds per instance.
+ */
+export async function sweepDispatchOnCheckIn(): Promise<void> {
+  if (env.ENABLE_JOBS) return;
+  if (checkInSweep) return checkInSweep;
+  if (Date.now() - lastCheckInSweep < CHECK_IN_SWEEP_EVERY_MS) return;
+  lastCheckInSweep = Date.now();
+  checkInSweep = runDispatchSweep()
+    .catch((err) => logger.error({ err }, 'Dispatch sweep on rider check-in failed'))
+    .finally(() => {
+      checkInSweep = null;
+    });
+  return checkInSweep;
+}
+
+/** Tests only: lets the next check-in sweep run immediately. */
+export function resetCheckInSweepThrottle(): void {
+  lastCheckInSweep = 0;
+}
+
 export async function runDispatchSweep(): Promise<void> {
   const expired = await prisma.dispatchOffer.findMany({
     where: { status: 'OFFERED', expiresAt: { lte: new Date() } },

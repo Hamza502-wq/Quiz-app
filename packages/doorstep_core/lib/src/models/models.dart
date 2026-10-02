@@ -319,6 +319,8 @@ class Quote {
     required this.totalLocalCents,
     required this.distanceKm,
     required this.etaMinutes,
+    this.cashAllowed = true,
+    this.cashLimitCents,
   });
 
   factory Quote.fromJson(Json j) => Quote(
@@ -331,6 +333,8 @@ class Quote {
         totalLocalCents: _int(j['totalLocalCents']),
         distanceKm: _double(j['distanceKm']),
         etaMinutes: _int(j['etaMinutes']),
+        cashAllowed: j['cashAllowed'] as bool? ?? true,
+        cashLimitCents: j['cashLimitCents'] == null ? null : _int(j['cashLimitCents']),
       );
 
   final int subtotalCents;
@@ -342,6 +346,10 @@ class Quote {
   final int totalLocalCents;
   final double distanceKm;
   final int etaMinutes;
+
+  /// Cash on delivery is only offered up to the riders' cash limit ([cashLimitCents]).
+  final bool cashAllowed;
+  final int? cashLimitCents;
 }
 
 class OrderItem {

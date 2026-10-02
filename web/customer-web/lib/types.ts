@@ -89,6 +89,9 @@ export interface Quote {
   totalLocalCents: number;
   distanceKm: number;
   etaMinutes: number;
+  /** Cash on delivery is only offered up to the riders' cash limit. */
+  cashAllowed?: boolean;
+  cashLimitCents?: number;
 }
 
 export interface PaymentInfo {

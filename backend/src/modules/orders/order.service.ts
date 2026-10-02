@@ -201,8 +201,28 @@ function presentQuote(q: {
   };
 }
 
+/**
+ * Riders can only carry so much customers' cash (the default rider cash limit),
+ * so larger orders must be paid online; otherwise no rider could ever be offered them.
+ */
+async function cashOnDelivery(totalCents: number) {
+  const { defaultCashLimitCents } = await getSettings();
+  return { cashAllowed: totalCents <= defaultCashLimitCents, cashLimitCents: defaultCashLimitCents };
+}
+
+async function assertCashAllowed(paymentMethod: PaymentMethod, totalCents: number): Promise<void> {
+  if (paymentMethod !== 'CASH') return;
+  const { cashAllowed, cashLimitCents } = await cashOnDelivery(totalCents);
+  if (!cashAllowed) {
+    throw badRequest(
+      `Cash on delivery is available for orders up to ${formatMoney(cashLimitCents, 'USD')}. Please pay with EcoCash, OneMoney or card.`,
+    );
+  }
+}
+
 export async function quoteVendorOrder(userId: string, input: VendorOrderInput) {
-  return presentQuote(await buildVendorQuote(userId, input));
+  const quote = presentQuote(await buildVendorQuote(userId, input));
+  return { ...quote, ...(await cashOnDelivery(quote.totalCents)) };
 }
 
 async function withUniqueCode<T>(fn: (code: string) => Promise<T>): Promise<T> {
@@ -223,6 +243,7 @@ export async function createVendorOrder(
   input: VendorOrderInput & { paymentMethod: PaymentMethod; notes?: string },
 ) {
   const q = await buildVendorQuote(user.id, input);
+  await assertCashAllowed(input.paymentMethod, q.breakdown.totalCents);
   const isCash = input.paymentMethod === 'CASH';
   const now = new Date();
 
@@ -358,11 +379,13 @@ async function buildParcelQuote(userId: string, input: ParcelOrderInput) {
 }
 
 export async function quoteParcelOrder(userId: string, input: ParcelOrderInput) {
-  return presentQuote(await buildParcelQuote(userId, input));
+  const quote = presentQuote(await buildParcelQuote(userId, input));
+  return { ...quote, ...(await cashOnDelivery(quote.totalCents)) };
 }
 
 export async function createParcelOrder(user: AuthUser, input: ParcelOrderInput & { paymentMethod: PaymentMethod; notes?: string }) {
   const q = await buildParcelQuote(user.id, input);
+  await assertCashAllowed(input.paymentMethod, q.breakdown.totalCents);
   const isCash = input.paymentMethod === 'CASH';
   const now = new Date();
 

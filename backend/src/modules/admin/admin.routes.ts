@@ -267,7 +267,17 @@ defineRoute(adminRouter, {
     if (!order) throw notFound('Order');
     if (order.riderId) throw conflict('A rider is already assigned.');
     const offerId = await offerToNextRider(params.id);
-    return { offered: Boolean(offerId), offerId, message: offerId ? 'Offer sent to the nearest rider' : 'No eligible riders nearby right now' };
+    if (offerId) return { offered: true, offerId, message: 'Offer sent to the nearest rider' };
+    // Say why when riders are nearby but none can carry this much cash.
+    const overCashLimit =
+      order.paymentMethod === 'CASH' && (await findCandidates(order, { requireCashCapacity: false })).length > 0;
+    return {
+      offered: false,
+      offerId: null,
+      message: overCashLimit
+        ? `Riders are nearby, but collecting ${formatMoney(order.totalCents, 'USD')} in cash is above their cash limit. Raise a rider's cash limit, then assign them.`
+        : 'No eligible riders nearby right now',
+    };
   },
 });
 

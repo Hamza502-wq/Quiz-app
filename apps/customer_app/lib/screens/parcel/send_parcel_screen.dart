@@ -92,7 +92,13 @@ class _SendParcelScreenState extends State<SendParcelScreen> {
     });
     try {
       final data = await context.read<ApiClient>().post('/orders/parcel/quote', body: body);
-      if (mounted) setState(() => _quote = Quote.fromJson(data as Map<String, dynamic>));
+      if (!mounted) return;
+      final quote = Quote.fromJson(data as Map<String, dynamic>);
+      setState(() {
+        _quote = quote;
+        // Riders can only carry so much cash: larger orders are paid online.
+        if (!quote.cashAllowed && _method == 'CASH') _method = 'ECOCASH';
+      });
     } catch (e) {
       if (mounted) setState(() => _quoteError = e);
     } finally {
@@ -229,7 +235,12 @@ class _SendParcelScreenState extends State<SendParcelScreen> {
                   })),
               child: Column(
                 children: [
-                  PaymentMethodSelector(value: _method, onChanged: (m) => setState(() => _method = m)),
+                  PaymentMethodSelector(
+                    value: _method,
+                    onChanged: (m) => setState(() => _method = m),
+                    allowCash: _quote?.cashAllowed ?? true,
+                    cashLimitCents: _quote?.cashLimitCents,
+                  ),
                   if (isMobile)
                     TextField(controller: _payerPhone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: '${paymentLabel(_method)} number')),
                   const SizedBox(height: 8),
