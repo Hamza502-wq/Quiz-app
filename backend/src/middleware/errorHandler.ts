@@ -41,6 +41,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
       return;
     }
   }
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    // Wrong address or password, or the database is down: details go to the server log only.
+    logger.error({ err, errorCode: err.errorCode, path: req.path, method: req.method }, 'Database unavailable');
+    res.status(503).json({
+      error: { code: 'DATABASE_UNAVAILABLE', message: 'We can’t reach the DoorStep database right now. Please try again in a minute.' },
+    });
+    return;
+  }
   // Body parser errors (malformed JSON, payload too large)
   if (typeof err === 'object' && err !== null && 'type' in err && 'status' in err) {
     const e = err as { status: number; type: string; message: string };

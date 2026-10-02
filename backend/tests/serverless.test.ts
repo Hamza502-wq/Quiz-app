@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import sharp from 'sharp';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../src/lib/prisma';
+import { errorHandler } from '../src/middleware/errorHandler';
 import { env } from '../src/config/env';
 import api from '../netlify/functions/api';
 import jobs from '../netlify/functions/jobs';
@@ -122,5 +125,44 @@ describe('Netlify Functions entry point', () => {
   it('runs the scheduled jobs', async () => {
     const res = await jobs();
     expect(res.status).toBe(204);
+  });
+
+  it('explains a missing DATABASE_URL instead of crashing', async () => {
+    const databaseUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    try {
+      for (const path of ['/api/v1/auth/register', '/health']) {
+        const res = await call(path, json({ phone: '0778222444', password: 'Rider1234', name: 'Tino', role: 'RIDER' }));
+        expect(res.status).toBe(503);
+        expect(res.headers.get('cache-control')).toBe('no-store');
+        expect((await read(res)).error).toMatchObject({ code: 'NOT_CONFIGURED', message: expect.stringContaining('DATABASE_URL') });
+      }
+      expect((await jobs()).status).toBe(204);
+    } finally {
+      process.env.DATABASE_URL = databaseUrl;
+    }
+    expect(await prisma.user.count({ where: { phone: '+263778222444' } })).toBe(0);
+  });
+});
+
+describe('error handler', () => {
+  it('answers 503 when the database cannot be reached', () => {
+    let status = 0;
+    let body: unknown;
+    const res = {
+      headersSent: false,
+      status(code: number) {
+        status = code;
+        return this;
+      },
+      json(payload: unknown) {
+        body = payload;
+        return this;
+      },
+    } as unknown as ExpressResponse;
+    const err = new Prisma.PrismaClientInitializationError("Can't reach database server", Prisma.prismaVersion.client, 'P1001');
+    errorHandler(err, { path: '/api/v1/auth/register', method: 'POST' } as ExpressRequest, res, () => undefined);
+    expect(status).toBe(503);
+    expect(body).toMatchObject({ error: { code: 'DATABASE_UNAVAILABLE' } });
   });
 });
