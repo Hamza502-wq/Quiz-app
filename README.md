@@ -79,7 +79,7 @@ How this differs from running the API on a server:
 * **Uploaded images are stored in the database** (`UPLOAD_STORAGE=database`).
 
 Setup:
-1. Create a PostgreSQL database, apply the schema and the baseline data (roles, categories, delivery zones, exchange rate). From `backend/`: `DATABASE_URL=… npx prisma migrate deploy`, then run [`prisma/production-baseline.sql`](backend/prisma/production-baseline.sql) (e.g. in Supabase's SQL editor). No stores or users are created.
+1. Create a PostgreSQL database, apply the schema and the baseline data (roles, categories, delivery zones, exchange rate). From `backend/`: `DATABASE_URL=… npx prisma migrate deploy`, then run [`prisma/production-baseline.sql`](backend/prisma/production-baseline.sql) (e.g. in Supabase's SQL editor). No stores or users are created. On Supabase the script also enables row level security on every table and removes the `anon`/`authenticated` grants, so nothing is readable through Supabase's public Data API keys (the API connects directly as the table owner and is unaffected).
 2. In Netlify, import the GitHub repository (Site configuration → Build & deploy → Link repository). Build settings come from `netlify.toml`.
 3. Add the environment variable **`DATABASE_URL`** (for Supabase: *Connect → Transaction pooler*, port 6543). Everything else has production defaults (see [`backend/src/netlify-env.ts`](backend/src/netlify-env.ts)); signing secrets are derived from `DATABASE_URL` unless `JWT_ACCESS_SECRET` / `OTP_SECRET` are set.
 4. Optional: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Google Maps: location picker, live map, rider navigation; redeploy after adding it), `PAYNOW_*`, `TWILIO_*`, `FCM_*`.

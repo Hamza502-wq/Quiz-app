@@ -1,7 +1,8 @@
 -- DoorStep production baseline: the reference data a new, empty database needs
--- (roles, store categories, delivery zones, exchange rate). Safe to run more
--- than once. No stores, menus or users are created; the first admin is an
--- existing account given the ADMIN role (see README → "First admin").
+-- (roles, store categories, delivery zones, exchange rate), plus, on Supabase, a
+-- lock-down of the auto-generated Data API. Safe to run more than once. No stores,
+-- menus or users are created; the first admin is an existing account given the
+-- ADMIN role (see README → "First admin").
 INSERT INTO roles (name) VALUES ('CUSTOMER'), ('RIDER'), ('VENDOR'), ('ADMIN')
 ON CONFLICT (name) DO NOTHING;
 
@@ -22,3 +23,23 @@ WHERE NOT EXISTS (SELECT 1 FROM zones z WHERE z.name = v.name);
 
 INSERT INTO settings (key, value, updated_at) VALUES ('zigPerUsd', '26.8'::jsonb, CURRENT_TIMESTAMP)
 ON CONFLICT (key) DO NOTHING;
+
+-- On Supabase: keep every table out of the auto-generated Data API. DoorStep connects
+-- to Postgres directly as the table owner, which row level security does not restrict;
+-- the public anon/authenticated API keys get no access at all. Skipped elsewhere.
+DO $$
+DECLARE t record;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+     AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+    END LOOP;
+    REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+    REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+    REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon, authenticated;
+  END IF;
+END $$;
