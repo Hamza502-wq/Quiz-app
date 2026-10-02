@@ -209,6 +209,7 @@ defineRoute(orderRouter, {
         order.rider && viewer !== 'vendor'
           ? {
               name: order.rider.user.name,
+              photoUrl: order.rider.user.avatarUrl,
               vehiclePlate: order.rider.vehiclePlate,
               location: riderLoc ? { ...riderLoc, heading: order.rider.heading, updatedAt: order.rider.locationUpdatedAt } : null,
             }

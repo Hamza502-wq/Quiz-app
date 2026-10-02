@@ -179,6 +179,7 @@ model User {
   phone               String              @unique // E.164, e.g. +263771234567
   name                String?
   email               String?
+  avatarUrl           String?             @map("avatar_url") // profile photo (public upload)
   passwordHash        String?             @map("password_hash")
   status              UserStatus          @default(ACTIVE)
   preferredCurrency   Currency            @default(USD) @map("preferred_currency")
@@ -438,7 +439,7 @@ model Rider {
   vehicleType        VehicleType    @default(MOTORBIKE) @map("vehicle_type")
   vehicleMake        String?        @map("vehicle_make")
   vehicleModel       String?        @map("vehicle_model")
-  vehiclePlate       String         @map("vehicle_plate")
+  vehiclePlate       String?        @map("vehicle_plate") // Zimbabwean plate, e.g. "AEZ 1234"; none for bicycles
   vehicleColor       String?        @map("vehicle_color")
   vehiclePhotoUrl    String?        @map("vehicle_photo_url")
   isOnline           Boolean        @default(false) @map("is_online")

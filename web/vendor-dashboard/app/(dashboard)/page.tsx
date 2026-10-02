@@ -87,7 +87,7 @@ export default function OverviewPage() {
           {newOrders > 0 ? <span className="text-sm font-semibold text-brand">{newOrders} waiting for you to accept</span> : null}
         </div>
         {active.loading && !active.data ? (
-          <LoadingBlock />
+          <LoadingBlock variant="list" />
         ) : active.error ? (
           <ErrorState message={active.error.message} onRetry={() => void active.reload()} />
         ) : active.data && active.data.items.length > 0 ? (

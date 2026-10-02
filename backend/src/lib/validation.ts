@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizePhone } from './phone';
+import { normalizeZwPlate, ZW_PLATE_HINT } from './plate';
 
 /** Accepts local or international formats and outputs E.164. */
 export const phoneSchema = z
@@ -11,6 +12,20 @@ export const phoneSchema = z
     const normalized = normalizePhone(value);
     if (!normalized) {
       ctx.addIssue({ code: 'custom', message: 'Enter a valid phone number, e.g. 0771 234 567' });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+/** Zimbabwean number plate, output as "ABC 1234". */
+export const zwPlateSchema = z
+  .string()
+  .trim()
+  .max(20)
+  .transform((value, ctx) => {
+    const normalized = normalizeZwPlate(value);
+    if (!normalized) {
+      ctx.addIssue({ code: 'custom', message: ZW_PLATE_HINT });
       return z.NEVER;
     }
     return normalized;

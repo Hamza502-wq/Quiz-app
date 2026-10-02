@@ -33,7 +33,7 @@ export default function CartPage() {
         <ArrowLeft className="h-4 w-4" aria-hidden /> {cart.vendorSlug ? 'Back to the store' : 'Browse stores'}
       </Link>
       <PageHeader title="Your cart" />
-      {!cart.ready ? <LoadingBlock /> : <CartPanel minOrderCents={vendor?.minOrderCents} blockedReason={blockedReason} />}
+      {!cart.ready ? <LoadingBlock variant="list" /> : <CartPanel minOrderCents={vendor?.minOrderCents} blockedReason={blockedReason} />}
     </div>
   );
 }

@@ -47,14 +47,21 @@ class _AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    return switch (auth.status) {
-      AuthStatus.unknown => const SplashScreen(tagline: 'Rider app'),
-      AuthStatus.signedOut => const PhoneLoginScreen(
-          title: 'DoorStep Rider',
-          subtitle: 'Deliver across your city and earn on your schedule.',
-        ),
-      AuthStatus.signedIn => const _RiderGate(),
-    };
+    final rider = context.watch<RiderController>();
+    // Keep the opening animation up until the rider's profile has loaded too.
+    final loadingRider = auth.status == AuthStatus.signedIn && rider.dashboard == null && rider.error == null;
+    return OpeningSplashGate(
+      ready: auth.status != AuthStatus.unknown && !loadingRider,
+      tagline: 'Rider app',
+      child: switch (auth.status) {
+        AuthStatus.unknown => const SplashScreen(tagline: 'Rider app'),
+        AuthStatus.signedOut => const PhoneLoginScreen(
+            title: 'DoorStep Rider',
+            subtitle: 'Deliver across your city and earn on your schedule.',
+          ),
+        AuthStatus.signedIn => const _RiderGate(),
+      },
+    );
   }
 }
 

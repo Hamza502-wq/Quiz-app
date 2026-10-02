@@ -7,6 +7,7 @@ import { ArrowLeft, Ban, Banknote, CheckCircle2, Gift, XCircle } from 'lucide-re
 import {
   ApprovalBadge,
   AuthImage,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -17,6 +18,7 @@ import {
   LoadingBlock,
   Modal,
   PAYMENT_METHOD_LABEL,
+  PlateBadge,
   Select,
   StatCard,
   Textarea,
@@ -28,6 +30,7 @@ import {
   parseMoneyToCents,
   useApi,
   useToast,
+  vehicleLabel,
   type ApprovalStatus,
   type PayoutMethod,
 } from '@doorstep/web-shared';
@@ -44,7 +47,7 @@ interface RiderDetail {
   vehicleType: string;
   vehicleMake: string | null;
   vehicleModel: string | null;
-  vehiclePlate: string;
+  vehiclePlate: string | null;
   vehicleColor: string | null;
   vehiclePhotoUrl: string | null;
   cashLimitCents: number | null;
@@ -54,7 +57,7 @@ interface RiderDetail {
   payoutMethod: PayoutMethod | null;
   payoutAccount: string | null;
   createdAt: string;
-  user: { id: string; name: string | null; phone: string; status: string; createdAt: string };
+  user: { id: string; name: string | null; phone: string; status: string; avatarUrl: string | null; createdAt: string };
   zone: { name: string } | null;
   wallet: {
     balanceCents: number;
@@ -71,7 +74,7 @@ interface RiderDetail {
 
 export default function RiderDetailPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="detail" />}>
       <RiderDetailView />
     </Suspense>
   );
@@ -93,7 +96,7 @@ function RiderDetailView() {
     if (r) setCashLimit(r.cashLimitCents !== null ? centsToInput(r.cashLimitCents) : '');
   }, [r]);
 
-  if (loading && !r) return <LoadingBlock />;
+  if (loading && !r) return <LoadingBlock variant="detail" />;
   if (error || !r) return <ErrorState message={error?.message ?? 'Rider not found'} onRetry={() => void reload()} />;
 
   const changeStatus = async () => {
@@ -136,6 +139,7 @@ function RiderDetailView() {
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
+          <Avatar src={r.user.avatarUrl} name={r.user.name ?? r.user.phone} size="lg" />
           <h1 className="text-2xl font-bold">{r.user.name ?? r.user.phone}</h1>
           <ApprovalBadge status={r.status} />
           {r.isOnline ? <Badge tone="green">Online</Badge> : <Badge>Offline</Badge>}
@@ -170,6 +174,16 @@ function RiderDetailView() {
         <Card className="space-y-3 text-sm">
           <h2 className="font-bold">Documents & vehicle</h2>
           {r.rejectionReason ? <p className="rounded-lg bg-alert-light px-3 py-2 text-alert">Rejected: {r.rejectionReason}</p> : null}
+          <div>
+            <p className="mb-1 font-semibold">Profile photo</p>
+            {r.user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={r.user.avatarUrl} alt={`${r.user.name ?? 'Rider'}`} className="h-40 w-40 rounded-xl border border-line object-cover" />
+            ) : (
+              <p className="text-muted">No photo uploaded.</p>
+            )}
+            <p className="mt-1 text-xs text-muted">Check it matches the face on the national ID.</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="mb-1 font-semibold">National ID · {r.nationalId}</p>
@@ -181,9 +195,10 @@ function RiderDetailView() {
               <p className="mt-1 text-xs text-muted">Expires {formatDate(r.licenceExpiry)}</p>
             </div>
           </div>
-          <p>
-            <strong>{r.vehicleType.toLowerCase()}</strong> · {[r.vehicleColor, r.vehicleMake, r.vehicleModel].filter(Boolean).join(' ')} ·{' '}
-            <strong>{r.vehiclePlate}</strong>
+          <p className="flex flex-wrap items-center gap-2">
+            <strong>{vehicleLabel(r.vehicleType)}</strong>
+            {[r.vehicleColor, r.vehicleMake, r.vehicleModel].filter(Boolean).join(' ')}
+            {r.vehiclePlate ? <PlateBadge plate={r.vehiclePlate} /> : <span className="text-muted">No number plate (bicycle)</span>}
           </p>
           {r.vehiclePhotoUrl ? <AuthImage src={r.vehiclePhotoUrl} alt="Vehicle" className="h-40 w-full" /> : null}
           <p>

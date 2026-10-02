@@ -76,7 +76,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     if (order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Delivery')),
-        body: _error != null ? ErrorView(error: _error!, onRetry: _load) : const LoadingView(),
+        body: _error != null ? ErrorView(error: _error!, onRetry: _load) : const LoadingView(layout: SkeletonLayout.detail),
       );
     }
 
@@ -132,8 +132,21 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(atPickupStage ? (order.pickup.contactName ?? order.title) : (order.dropoff.contactName ?? order.customerName ?? 'Customer'),
-                                style: Theme.of(context).textTheme.titleMedium),
+                            Row(
+                              children: [
+                                if (atPickupStage)
+                                  UserAvatar(url: order.vendorLogoUrl, name: order.vendorName ?? order.title, size: 40, square: true)
+                                else
+                                  UserAvatar(url: order.customerPhotoUrl, name: order.customerName ?? 'Customer', size: 40),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    atPickupStage ? (order.pickup.contactName ?? order.title) : (order.dropoff.contactName ?? order.customerName ?? 'Customer'),
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
                             if (target.landmark != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

@@ -37,6 +37,7 @@ class Profile {
     required this.notificationChannel,
     this.name,
     this.email,
+    this.avatarUrl,
     this.riderStatus,
     this.vendorId,
     this.customerId,
@@ -47,6 +48,7 @@ class Profile {
         phone: j['phone'] as String,
         name: j['name'] as String?,
         email: j['email'] as String?,
+        avatarUrl: j['avatarUrl'] as String?,
         roles: (j['roles'] as List).cast<String>(),
         preferredCurrency: (j['preferredCurrency'] as String?) ?? 'USD',
         notificationChannel: (j['notificationChannel'] as String?) ?? 'SMS',
@@ -59,6 +61,9 @@ class Profile {
   final String phone;
   final String? name;
   final String? email;
+
+  /// Profile photo (public upload), shown to riders, shops and customers.
+  final String? avatarUrl;
   final List<String> roles;
   final String preferredCurrency;
   final String notificationChannel;
@@ -71,6 +76,7 @@ class Profile {
         'phone': phone,
         'name': name,
         'email': email,
+        'avatarUrl': avatarUrl,
         'roles': roles,
         'preferredCurrency': preferredCurrency,
         'notificationChannel': notificationChannel,
@@ -383,14 +389,26 @@ class OrderPlace {
 }
 
 class OrderRider {
-  OrderRider({required this.id, required this.vehiclePlate, required this.vehicleDescription, required this.ratingAvg, this.name, this.phone, this.location});
+  OrderRider({
+    required this.id,
+    required this.vehicleDescription,
+    required this.ratingAvg,
+    this.vehicleType = 'MOTORBIKE',
+    this.vehiclePlate,
+    this.name,
+    this.photoUrl,
+    this.phone,
+    this.location,
+  });
   factory OrderRider.fromJson(Json j) {
     final loc = j['location'] as Json?;
     return OrderRider(
       id: j['id'] as String,
       name: j['name'] as String?,
+      photoUrl: j['photoUrl'] as String?,
       phone: j['phone'] as String?,
-      vehiclePlate: j['vehiclePlate'] as String,
+      vehicleType: j['vehicleType'] as String? ?? 'MOTORBIKE',
+      vehiclePlate: j['vehiclePlate'] as String?,
       vehicleDescription: j['vehicleDescription'] as String? ?? '',
       ratingAvg: _double(j['ratingAvg']),
       location: loc == null ? null : GeoPoint(_double(loc['lat']), _double(loc['lng'])),
@@ -398,8 +416,12 @@ class OrderRider {
   }
   final String id;
   final String? name;
+  final String? photoUrl;
   final String? phone;
-  final String vehiclePlate;
+  final String vehicleType;
+
+  /// Zimbabwean number plate, e.g. "AEZ 1234"; null for bicycles.
+  final String? vehiclePlate;
   final String vehicleDescription;
   final double ratingAvg;
   final GeoPoint? location;
@@ -490,6 +512,7 @@ class Order {
     this.vendorLogoUrl,
     this.rider,
     this.customerName,
+    this.customerPhotoUrl,
     this.customerPhone,
     this.parcelDescription,
     this.parcelSize,
@@ -526,6 +549,7 @@ class Order {
       vendorLogoUrl: vendor?['logoUrl'] as String?,
       rider: j['rider'] == null ? null : OrderRider.fromJson(j['rider'] as Json),
       customerName: customer?['name'] as String?,
+      customerPhotoUrl: customer?['photoUrl'] as String?,
       customerPhone: customer?['phone'] as String?,
       pickup: OrderPlace.fromJson(j['pickup'] as Json),
       dropoff: OrderPlace.fromJson(j['dropoff'] as Json, dropoff: true),
@@ -565,6 +589,7 @@ class Order {
   final String? vendorLogoUrl;
   final OrderRider? rider;
   final String? customerName;
+  final String? customerPhotoUrl;
   final String? customerPhone;
   final OrderPlace pickup;
   final OrderPlace dropoff;
@@ -622,7 +647,7 @@ class PaymentInfo {
 }
 
 class TrackingSnapshot {
-  TrackingSnapshot({required this.status, this.riderLocation, this.etaMinutes, this.riderName, this.vehiclePlate});
+  TrackingSnapshot({required this.status, this.riderLocation, this.etaMinutes, this.riderName, this.riderPhotoUrl, this.vehiclePlate});
   factory TrackingSnapshot.fromJson(Json j) {
     final rider = j['rider'] as Json?;
     final loc = rider?['location'] as Json?;
@@ -631,6 +656,7 @@ class TrackingSnapshot {
       riderLocation: loc == null ? null : GeoPoint(_double(loc['lat']), _double(loc['lng'])),
       etaMinutes: j['etaMinutes'] == null ? null : _int(j['etaMinutes']),
       riderName: rider?['name'] as String?,
+      riderPhotoUrl: rider?['photoUrl'] as String?,
       vehiclePlate: rider?['vehiclePlate'] as String?,
     );
   }
@@ -638,6 +664,7 @@ class TrackingSnapshot {
   final GeoPoint? riderLocation;
   final int? etaMinutes;
   final String? riderName;
+  final String? riderPhotoUrl;
   final String? vehiclePlate;
 }
 
@@ -827,10 +854,11 @@ class RiderProfile {
     required this.status,
     required this.isOnline,
     required this.vehicleType,
-    required this.vehiclePlate,
     required this.ratingAvg,
     required this.ratingCount,
+    this.vehiclePlate,
     this.name,
+    this.photoUrl,
     this.rejectionReason,
     this.vehicleMake,
     this.vehicleModel,
@@ -845,6 +873,7 @@ class RiderProfile {
   factory RiderProfile.fromJson(Json j) => RiderProfile(
         id: j['id'] as String,
         name: j['name'] as String?,
+        photoUrl: j['photoUrl'] as String?,
         phone: j['phone'] as String,
         status: j['status'] as String,
         rejectionReason: j['rejectionReason'] as String?,
@@ -852,7 +881,7 @@ class RiderProfile {
         vehicleType: j['vehicleType'] as String,
         vehicleMake: j['vehicleMake'] as String?,
         vehicleModel: j['vehicleModel'] as String?,
-        vehiclePlate: j['vehiclePlate'] as String,
+        vehiclePlate: j['vehiclePlate'] as String?,
         vehicleColor: j['vehicleColor'] as String?,
         ratingAvg: _double(j['ratingAvg']),
         ratingCount: _int(j['ratingCount']),
@@ -865,6 +894,7 @@ class RiderProfile {
 
   final String id;
   final String? name;
+  final String? photoUrl;
   final String phone;
   final String status;
   final String? rejectionReason;
@@ -872,7 +902,9 @@ class RiderProfile {
   final String vehicleType;
   final String? vehicleMake;
   final String? vehicleModel;
-  final String vehiclePlate;
+
+  /// Zimbabwean number plate, e.g. "AEZ 1234"; null for bicycles.
+  final String? vehiclePlate;
   final String? vehicleColor;
   final double ratingAvg;
   final int ratingCount;

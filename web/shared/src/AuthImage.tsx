@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import { fetchPrivateBlobUrl, isPrivateUpload } from './api';
-import { Spinner, cn } from './ui';
+import { Skeleton, cn } from './ui';
 
 /** Renders an image, fetching private uploads (ID documents, delivery proof) with the access token. */
 export function AuthImage({ src, alt, className }: { src: string | null | undefined; alt: string; className?: string }) {
@@ -36,11 +36,7 @@ export function AuthImage({ src, alt, className }: { src: string | null | undefi
     );
   }
   if (isPrivate && !objectUrl) {
-    return (
-      <div className={cn('flex items-center justify-center rounded-xl bg-canvas', className)}>
-        <Spinner />
-      </div>
-    );
+    return <Skeleton className={cn('rounded-xl', className)} />;
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={isPrivate ? objectUrl! : src} alt={alt} className={cn('rounded-xl object-cover', className)} onError={() => setFailed(true)} />;

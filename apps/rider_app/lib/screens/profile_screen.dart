@@ -21,29 +21,25 @@ class RiderProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           SectionCard(
-            child: Row(
-              children: [
-                const CircleAvatar(radius: 28, backgroundColor: DsColors.orangeLight, child: Icon(Icons.delivery_dining_rounded, color: DsColors.orange, size: 30)),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(r?.name ?? 'Rider', style: Theme.of(context).textTheme.titleLarge),
-                      Text(r?.phone ?? '', style: const TextStyle(color: DsColors.muted)),
-                      if (r != null) Text('★ ${r.ratingAvg.toStringAsFixed(1)} · ${r.ratingCount} ratings${r.zoneName != null ? ' · ${r.zoneName}' : ''}', style: const TextStyle(color: DsColors.orange)),
-                    ],
-                  ),
-                ),
-              ],
+            child: ProfilePhotoHeader(
+              subtitle: r == null ? null : '★ ${r.ratingAvg.toStringAsFixed(1)} · ${r.ratingCount} ratings${r.zoneName != null ? ' · ${r.zoneName}' : ''}',
             ),
           ),
           const SizedBox(height: 12),
           if (r != null)
             SectionCard(
               title: 'Vehicle',
-              child: Text(
-                '${r.vehicleType[0]}${r.vehicleType.substring(1).toLowerCase()} · ${[r.vehicleColor, r.vehicleMake, r.vehicleModel].whereType<String>().join(' ')}\nPlate: ${r.vehiclePlate}',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      [vehicleLabel(r.vehicleType), [r.vehicleColor, r.vehicleMake, r.vehicleModel].whereType<String>().join(' ')]
+                          .where((s) => s.isNotEmpty)
+                          .join(' · '),
+                    ),
+                  ),
+                  if (r.vehiclePlate != null) PlateChip(plate: r.vehiclePlate!),
+                ],
               ),
             ),
           const SizedBox(height: 12),
@@ -97,6 +93,8 @@ class RiderProfileScreen extends StatelessWidget {
           const Center(child: FlagStripe(width: 48)),
           const SizedBox(height: 8),
           const Center(child: Text('DoorStep Rider · v1.0.0', style: TextStyle(color: DsColors.muted, fontSize: 12))),
+          const SizedBox(height: 4),
+          const MadeBy(),
         ],
       ),
     );

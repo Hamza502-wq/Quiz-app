@@ -14,7 +14,7 @@ function safeNext(value: string | null): string {
 
 export default function Login() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="form" />}>
       <LoginScreen />
     </Suspense>
   );

@@ -6,6 +6,10 @@
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>DoorStep uses your location to set your delivery pin and show stores near you.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a profile photo so riders and shops can recognise you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a profile photo so riders and shops can recognise you.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

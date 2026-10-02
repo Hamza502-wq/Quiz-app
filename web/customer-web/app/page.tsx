@@ -31,7 +31,7 @@ const SORTS: Sort[] = ['recommended', 'rating', 'distance', 'deliveryFee'];
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="cards" />}>
       <Home />
     </Suspense>
   );
@@ -110,6 +110,8 @@ function Home() {
   // Page 1 renders straight from the response so the list never flashes empty.
   const shown = vendors.data?.page === 1 ? vendors.data.items : items;
   const shopCategories = (categories.data ?? []).filter((c) => c.slug !== 'parcels');
+  // Every kind of shop, beyond the photo tiles (electronics, clothing, hardware, …).
+  const moreShops = shopCategories.filter((c) => !CATEGORY_TILES.some((t) => t.slug === c.slug));
 
   return (
     <div>
@@ -119,7 +121,8 @@ function Home() {
             <FlagStripe className="mb-5 h-1.5 w-20" />
             <h1 className="text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">Your local stores, delivered to your door.</h1>
             <p className="mt-4 max-w-xl text-white/90">
-              Food, groceries and pharmacy from stores near you, plus parcels across town. Pay with EcoCash, OneMoney, card or cash.
+              Food, groceries, medicine, phones, clothes and more from shops near you, plus parcels across town. Pay with EcoCash,
+              OneMoney, card or cash.
             </p>
             <div className="mt-6 flex max-w-xl flex-col gap-2 sm:flex-row">
               <label className="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 text-ink shadow-lg">
@@ -128,7 +131,7 @@ function Home() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search stores or dishes, e.g. sadza, pizza"
+                  placeholder="Search shops or products, e.g. sadza, phone charger"
                   className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted"
                   aria-label="Search stores and products"
                 />
@@ -177,19 +180,43 @@ function Home() {
         </div>
 
         {!q && !category ? (
-          <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Shop by category">
-            {CATEGORY_TILES.map((tile) =>
-              tile.slug === 'parcels' ? (
-                <Link key={tile.slug} href="/parcel" className="group">
-                  <PhotoTile {...tile} />
-                </Link>
-              ) : (
-                <button key={tile.slug} type="button" className="group text-left" onClick={() => setParam({ category: tile.slug })}>
-                  <PhotoTile {...tile} />
-                </button>
-              ),
-            )}
-          </section>
+          <>
+            <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Shop by category">
+              {CATEGORY_TILES.map((tile) =>
+                tile.slug === 'parcels' ? (
+                  <Link key={tile.slug} href="/parcel" className="group">
+                    <PhotoTile {...tile} />
+                  </Link>
+                ) : (
+                  <button key={tile.slug} type="button" className="group text-left" onClick={() => setParam({ category: tile.slug })}>
+                    <PhotoTile {...tile} />
+                  </button>
+                ),
+              )}
+            </section>
+            {moreShops.length > 0 ? (
+              <section className="mt-6" aria-labelledby="more-shops">
+                <h2 id="more-shops" className="text-base font-bold">
+                  More shops
+                </h2>
+                <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
+                  {moreShops.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setParam({ category: c.slug })}
+                      className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-white px-2 py-4 text-center text-xs font-semibold shadow-card transition-colors hover:border-brand"
+                    >
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-light text-brand">
+                        <CategoryIcon slug={c.slug} className="h-6 w-6" />
+                      </span>
+                      <span className="leading-tight">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </>
         ) : null}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -236,7 +263,7 @@ function Home() {
           {vendors.error && !vendors.data ? (
             <ErrorState message={vendors.error.message} onRetry={() => void vendors.reload()} />
           ) : !vendors.data ? (
-            <LoadingBlock label="Finding stores…" />
+            <LoadingBlock label="Finding stores…" variant="cards" />
           ) : shown.length === 0 ? (
             <EmptyState
               icon={<Store className="h-9 w-9" aria-hidden />}
@@ -286,7 +313,7 @@ function Home() {
         </div>
 
         <section className="mt-16 grid gap-5 md:grid-cols-3">
-          <HowItWorks icon={<Store className="h-6 w-6" />} title="Pick a store" text="Browse restaurants, grocers and pharmacies that deliver to you." />
+          <HowItWorks icon={<Store className="h-6 w-6" />} title="Pick a store" text="Browse restaurants, grocers, pharmacies and all kinds of shops that deliver to you." />
           <HowItWorks
             icon={<Smartphone className="h-6 w-6" />}
             title="Pay your way"
@@ -310,7 +337,7 @@ function Home() {
             photo={PHOTOS.shopOwner}
             icon={<Store className="h-6 w-6" />}
             title="Sell on DoorStep"
-            text="List your restaurant, grocery or pharmacy and reach customers across town. Manage orders and your menu from any phone."
+            text="List any shop (a restaurant, grocery, pharmacy, phone or clothing shop, hardware store…) and reach customers across town. Manage orders and your products from any phone."
             cta="List your shop"
             href={`${appLinks.vendor}login?signup=1`}
           />
@@ -363,21 +390,27 @@ const CATEGORY_TILES = [
   { slug: 'food', title: 'Food', text: 'Restaurants & takeaways', photo: PHOTOS.food },
   { slug: 'groceries', title: 'Groceries', text: 'Fresh produce & essentials', photo: PHOTOS.groceries },
   { slug: 'pharmacy', title: 'Pharmacy', text: 'Medicine & health', photo: PHOTOS.pharmacy },
-  { slug: 'parcels', title: 'Parcels', text: 'Send anything across town', photo: PHOTOS.parcels },
+  // A branded tile rather than a stock photo.
+  { slug: 'parcels', title: 'Parcels', text: 'Send anything across town', photo: null },
 ];
 
-function PhotoTile({ slug, title, text, photo }: { slug: string; title: string; text: string; photo: string }) {
+function PhotoTile({ slug, title, text, photo }: { slug: string; title: string; text: string; photo: string | null }) {
+  const branded = (
+    <div className="flex h-full w-full items-start justify-end p-4">
+      <CategoryIcon slug={slug} className="h-10 w-10 text-white/80 sm:h-12 sm:w-12" />
+    </div>
+  );
   return (
     <div className="relative h-36 overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark shadow-card sm:h-44">
-      <Photo
-        src={photo}
-        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        fallback={
-          <div className="flex h-full w-full items-start justify-end p-4">
-            <CategoryIcon slug={slug} className="h-10 w-10 text-white/80 sm:h-12 sm:w-12" />
-          </div>
-        }
-      />
+      {photo ? (
+        <Photo
+          src={photo}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          fallback={branded}
+        />
+      ) : (
+        branded
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-3 text-white sm:p-4">
         <p className="text-base font-bold sm:text-lg">{title}</p>

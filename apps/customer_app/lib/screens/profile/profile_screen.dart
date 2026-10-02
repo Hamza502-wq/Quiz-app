@@ -24,18 +24,7 @@ class ProfileScreen extends StatelessWidget {
           SectionCard(
             child: Row(
               children: [
-                const CircleAvatar(radius: 28, backgroundColor: DsColors.orangeLight, child: Icon(Icons.person_rounded, color: DsColors.orange, size: 30)),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(profile?.name ?? 'DoorStep customer', style: Theme.of(context).textTheme.titleLarge),
-                      Text(profile?.phone ?? '', style: const TextStyle(color: DsColors.muted)),
-                      if (profile?.email != null) Text(profile!.email!, style: const TextStyle(color: DsColors.muted)),
-                    ],
-                  ),
-                ),
+                Expanded(child: ProfilePhotoHeader(subtitle: profile?.email)),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: 'Edit profile',
@@ -130,6 +119,8 @@ class ProfileScreen extends StatelessWidget {
           const Center(child: FlagStripe(width: 48)),
           const SizedBox(height: 8),
           const Center(child: Text('DoorStep Zimbabwe · v1.0.0', style: TextStyle(color: DsColors.muted, fontSize: 12))),
+          const SizedBox(height: 4),
+          const MadeBy(),
         ],
       ),
     );

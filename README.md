@@ -4,7 +4,11 @@
 
 # DoorStep Zimbabwe
 
-On-demand delivery for Zimbabwe — food, groceries, pharmacy and parcels — with EcoCash, OneMoney, card and cash on delivery, prices in **USD and ZiG**, live rider tracking and a full rider cash/earnings ledger.
+On-demand delivery for Zimbabwe — food, groceries, pharmacy, electronics, clothing, hardware and any other kind of shop, plus parcels — with EcoCash, OneMoney, card and cash on delivery, prices in **USD and ZiG**, live rider tracking and a full rider cash/earnings ledger.
+
+Made by **Hamza Protech Solutions**.
+
+Every account can have a profile photo; riders must add one (with their Zimbabwean number plate, e.g. `AEZ 1234`, for motorbikes and cars) and shops must add a logo or shop-front photo before they are reviewed. The apps open with a short animation of the DoorStep scooter riding up to the house, and show skeleton placeholders while content loads.
 
 | Part | Tech | Folder |
 | --- | --- | --- |

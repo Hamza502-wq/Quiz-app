@@ -25,12 +25,18 @@ const storeFields = {
   description: optionalTrimmed(500),
   phone: phoneSchema,
   email: z.string().trim().email().max(120).optional(),
-  categorySlug: z.enum(['food', 'groceries', 'pharmacy']),
+  // Any active shop category (food, groceries, electronics, fashion, …); see GET /categories.
+  categorySlug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9-]{2,40}$/, 'Choose a category'),
   ...latLng,
   addressLine: trimmed(160),
   landmark: optionalTrimmed(200),
   city: z.string().trim().min(2).max(60).default('Harare'),
-  logoUrl: imageUrl.optional(),
+  // Shop logo or shop-front photo: every store shows one.
+  logoUrl: imageUrl,
   coverUrl: imageUrl.optional(),
   avgPrepMinutes: z.number().int().min(1).max(180).default(20),
   minOrderCents: moneyCents.default(0),
@@ -42,6 +48,13 @@ const payoutFields = {
   payoutAccountName: optionalTrimmed(80),
   payoutBankName: optionalTrimmed(80),
 };
+
+/** Shop categories exclude "parcels", which is the send-a-parcel service rather than a kind of shop. */
+async function findShopCategory(slug: string) {
+  const category = await prisma.category.findUnique({ where: { slug } });
+  if (!category || !category.isActive || category.slug === 'parcels') throw badRequest('Choose one of the listed shop categories');
+  return category;
+}
 
 async function presentOwnVendor(vendorId: string) {
   const vendor = await prisma.vendor.findUniqueOrThrow({
@@ -77,8 +90,7 @@ defineRoute(vendorPortalRouter, {
   handler: async ({ body, user }) => {
     const existing = await prisma.vendor.findUnique({ where: { userId: user.id } });
     if (existing) throw conflict('You already have a store.');
-    const category = await prisma.category.findUnique({ where: { slug: body.categorySlug } });
-    if (!category) throw badRequest('Unknown category');
+    const category = await findShopCategory(body.categorySlug);
     const zone = await findZoneForPoint(body);
     const baseSlug = slugify(body.name) || 'store';
     const slugTaken = await prisma.vendor.findUnique({ where: { slug: baseSlug } });
@@ -137,7 +149,6 @@ defineRoute(vendorPortalRouter, {
       ...storeFields,
       ...payoutFields,
       isAcceptingOrders: z.boolean(),
-      logoUrl: imageUrl.nullable(),
       coverUrl: imageUrl.nullable(),
     })
     .partial(),
@@ -145,11 +156,7 @@ defineRoute(vendorPortalRouter, {
     const vendor = await requireOwnVendor(user.id);
     const { categorySlug, ...rest } = body;
     const data: Prisma.VendorUncheckedUpdateInput = { ...rest };
-    if (categorySlug) {
-      const category = await prisma.category.findUnique({ where: { slug: categorySlug } });
-      if (!category) throw badRequest('Unknown category');
-      data.categoryId = category.id;
-    }
+    if (categorySlug) data.categoryId = (await findShopCategory(categorySlug)).id;
     if (body.lat !== undefined && body.lng !== undefined) {
       data.zoneId = (await findZoneForPoint({ lat: body.lat, lng: body.lng }))?.id ?? null;
     }

@@ -33,9 +33,9 @@ function Onboarding() {
         </Button>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="text-3xl font-bold">List your store on DoorStep</h1>
+        <h1 className="text-3xl font-bold">List your shop on DoorStep</h1>
         <p className="mt-2 text-muted">
-          Tell us about your business. Our team reviews every store — you&apos;ll be notified here once you&apos;re approved and can
+          Restaurants, grocers, pharmacies, phone and clothing shops, hardware stores: any shop can sell on DoorStep. Tell us about your business. Our team reviews every store — you&apos;ll be notified here once you&apos;re approved and can
           start receiving orders.
         </p>
         <FlagStripe className="mb-8 mt-4" />
@@ -49,7 +49,7 @@ function Onboarding() {
               body: { ...rest, logoUrl: logoUrl ?? undefined, coverUrl: coverUrl ?? undefined, ownerName: user?.name ?? undefined },
             });
             await refreshProfile();
-            toast('Store submitted! Add your menu while we review it.');
+            toast('Shop submitted! Add your products while we review it.');
             router.replace('/menu');
           }}
         />

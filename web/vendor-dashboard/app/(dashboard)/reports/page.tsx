@@ -102,7 +102,7 @@ export default function ReportsPage() {
       />
 
       {sales.loading && !sales.data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="stats" />
       ) : sales.error ? (
         <ErrorState message={sales.error.message} onRetry={() => void sales.reload()} />
       ) : sales.data ? (
@@ -181,7 +181,7 @@ export default function ReportsPage() {
           </Button>
         </div>
         {statement.loading && !statement.data ? (
-          <LoadingBlock />
+          <LoadingBlock variant="table" />
         ) : statement.error ? (
           <ErrorState message={statement.error.message} onRetry={() => void statement.reload()} />
         ) : statement.data && statement.data.orders.length > 0 ? (

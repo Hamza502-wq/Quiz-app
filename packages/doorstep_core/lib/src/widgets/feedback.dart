@@ -2,9 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../api/api_exception.dart';
 import '../theme.dart';
+import 'skeleton.dart';
 
+/// Loading placeholder: a skeleton of the content on its way. `message` is
+/// read out by screen readers.
 class LoadingView extends StatelessWidget {
-  const LoadingView({super.key, this.message});
+  const LoadingView({super.key, this.message, this.layout = SkeletonLayout.list, this.compact = false});
+  final String? message;
+  final SkeletonLayout layout;
+
+  /// A shorter skeleton, for places where the height is unbounded.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => SkeletonView(layout: layout, label: message, compact: compact);
+}
+
+/// A spinner with a message, for actions in progress (uploading a photo, …).
+class BusyView extends StatelessWidget {
+  const BusyView({super.key, this.message});
   final String? message;
 
   @override

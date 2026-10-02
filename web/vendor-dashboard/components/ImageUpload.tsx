@@ -11,12 +11,15 @@ export function ImageUpload({
   kind,
   label,
   aspect = 'square',
+  required = false,
 }: {
   value: string | null;
   onChange: (url: string | null, thumbUrl: string | null) => void;
   kind: UploadKind;
   label: string;
   aspect?: 'square' | 'wide';
+  /** Hides "Remove": the image can be replaced but not left empty. */
+  required?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -62,7 +65,7 @@ export function ImageUpload({
           <Button variant="secondary" size="sm" onClick={() => input.current?.click()} disabled={busy}>
             {value ? 'Change' : 'Upload'}
           </Button>
-          {value ? (
+          {value && !required ? (
             <Button variant="ghost" size="sm" icon={<Trash2 className="h-4 w-4" />} onClick={() => onChange(null, null)}>
               Remove
             </Button>

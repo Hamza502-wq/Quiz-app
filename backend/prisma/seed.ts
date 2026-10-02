@@ -293,6 +293,16 @@ async function main() {
     { name: 'Groceries', slug: 'groceries', icon: 'local_grocery_store', sortOrder: 2 },
     { name: 'Pharmacy', slug: 'pharmacy', icon: 'local_pharmacy', sortOrder: 3 },
     { name: 'Parcels', slug: 'parcels', icon: 'inventory_2', sortOrder: 4 },
+    // Any kind of shop can sell on DoorStep, not only food.
+    { name: 'Electronics & phones', slug: 'electronics', icon: 'devices', sortOrder: 5 },
+    { name: 'Clothing & shoes', slug: 'fashion', icon: 'checkroom', sortOrder: 6 },
+    { name: 'Beauty & personal care', slug: 'beauty', icon: 'spa', sortOrder: 7 },
+    { name: 'Hardware & tools', slug: 'hardware', icon: 'hardware', sortOrder: 8 },
+    { name: 'Home & kitchen', slug: 'home', icon: 'chair', sortOrder: 9 },
+    { name: 'Books & stationery', slug: 'books', icon: 'menu_book', sortOrder: 10 },
+    { name: 'Flowers & gifts', slug: 'gifts', icon: 'local_florist', sortOrder: 11 },
+    { name: 'Farm & garden', slug: 'farm', icon: 'yard', sortOrder: 12 },
+    { name: 'Other shops', slug: 'other', icon: 'storefront', sortOrder: 13 },
   ];
   for (const c of categories) {
     await prisma.category.upsert({ where: { slug: c.slug }, create: c, update: c });

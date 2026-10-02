@@ -147,7 +147,7 @@ function Checkout() {
     }
   };
 
-  if (!cart.ready) return <LoadingBlock />;
+  if (!cart.ready) return <LoadingBlock variant="form" />;
   if (cart.lines.length === 0 && !placing) {
     return (
       <div className="mx-auto max-w-xl px-4 py-12">

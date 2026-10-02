@@ -1,11 +1,12 @@
 import 'package:doorstep_core/doorstep_core.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../state/rider_controller.dart';
 import 'document_picker.dart';
 
-/// Rider onboarding: ID, driver's licence and vehicle details. Submitted for admin approval.
+/// Rider onboarding: photo, ID, driver's licence and vehicle details. Submitted for admin approval.
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key, this.existing});
   final RiderProfile? existing;
@@ -25,10 +26,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   late final _color = TextEditingController(text: widget.existing?.vehicleColor);
   late String _vehicleType = widget.existing?.vehicleType ?? 'MOTORBIKE';
   DateTime? _licenceExpiry;
+  late String? _photoUrl = context.read<AuthController>().profile?.avatarUrl;
   String? _idUrl;
   String? _licenceUrl;
   String? _vehicleUrl;
+  bool _photoUploading = false;
   bool _submitting = false;
+
+  Future<void> _pickPhoto() async {
+    setState(() => _photoUploading = true);
+    try {
+      final url = await pickAndUpload(context, kind: 'avatar', preferredCamera: CameraDevice.front);
+      if (url != null) setState(() => _photoUrl = url);
+    } catch (e) {
+      if (mounted) showSnack(context, errorMessage(e), error: true);
+    } finally {
+      if (mounted) setState(() => _photoUploading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -40,6 +55,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
+    if (_photoUrl == null) {
+      showSnack(context, 'Add a clear photo of your face so customers can recognise you', error: true);
+      return;
+    }
     if (_idUrl == null || _licenceUrl == null) {
       showSnack(context, 'Upload photos of your ID and licence', error: true);
       return;
@@ -57,7 +76,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         'vehicleType': _vehicleType,
         if (_make.text.trim().isNotEmpty) 'vehicleMake': _make.text.trim(),
         if (_model.text.trim().isNotEmpty) 'vehicleModel': _model.text.trim(),
-        'vehiclePlate': _plate.text.trim(),
+        if (_vehicleType != 'BICYCLE') 'vehiclePlate': normalizeZwPlate(_plate.text),
+        'photoUrl': _photoUrl,
         if (_color.text.trim().isNotEmpty) 'vehicleColor': _color.text.trim(),
         if (_vehicleUrl != null) 'vehiclePhotoUrl': _vehicleUrl,
       });
@@ -96,6 +116,33 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               title: 'About you',
               child: Column(
                 children: [
+                  Row(
+                    children: [
+                      UserAvatar(url: _photoUrl, name: _name.text.isEmpty ? null : _name.text, size: 72),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Your photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const Text(
+                              'A clear photo of your face. Customers see it so they know who is at the door.',
+                              style: TextStyle(color: DsColors.muted, fontSize: 13),
+                            ),
+                            const SizedBox(height: 6),
+                            OutlinedButton.icon(
+                              onPressed: _photoUploading ? null : _pickPhoto,
+                              icon: _photoUploading
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.photo_camera_outlined),
+                              label: Text(_photoUrl == null ? 'Add photo' : 'Change photo'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(controller: _name, textCapitalization: TextCapitalization.words, validator: _required, decoration: const InputDecoration(labelText: 'Full name (as on ID)')),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -149,13 +196,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ChoiceChip(avatar: Icon(icon, size: 18), label: Text(label), selected: _vehicleType == code, onSelected: (_) => setState(() => _vehicleType = code)),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _plate,
-                    textCapitalization: TextCapitalization.characters,
-                    validator: _required,
-                    decoration: InputDecoration(labelText: _vehicleType == 'BICYCLE' ? 'Bike ID / serial number' : 'Number plate'),
-                  ),
+                  if (_vehicleType != 'BICYCLE') ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _plate,
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => normalizeZwPlate(v ?? '') == null ? 'Enter the plate as shown on your bike, e.g. AEZ 1234' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Number plate',
+                        hintText: 'AEZ 1234',
+                        helperText: 'Zimbabwean plate: three letters and four numbers',
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(child: TextFormField(controller: _make, decoration: const InputDecoration(labelText: 'Make', hintText: 'Honda'))),

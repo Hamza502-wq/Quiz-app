@@ -31,6 +31,8 @@ export interface Profile {
   phone: string;
   name: string | null;
   email: string | null;
+  /** Profile photo (public upload), or null. */
+  avatarUrl: string | null;
   status: 'ACTIVE' | 'SUSPENDED';
   roles: RoleName[];
   preferredCurrency: Currency;
@@ -145,14 +147,16 @@ export interface Order {
   rider: {
     id: string;
     name: string | null;
+    photoUrl: string | null;
     phone?: string;
     vehicleType: string;
     vehicleDescription: string;
-    vehiclePlate: string;
+    /** Zimbabwean number plate, e.g. "AEZ 1234"; null for bicycles. */
+    vehiclePlate: string | null;
     ratingAvg: number;
     location: { lat: number; lng: number; heading: number | null; updatedAt: string | null } | null;
   } | null;
-  customer?: { name: string; phone?: string };
+  customer?: { name: string; photoUrl: string | null; phone?: string };
   pickup: { lat: number; lng: number; address: string; landmark: string | null; contactName: string | null; contactPhone?: string | null };
   dropoff: { lat: number; lng: number; address: string; landmark: string; recipientName: string | null; recipientPhone?: string | null };
   parcel: { description: string | null; size: 'SMALL' | 'MEDIUM' | 'LARGE' | null } | null;

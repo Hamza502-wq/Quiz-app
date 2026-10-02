@@ -1,4 +1,5 @@
 import 'package:doorstep_core/doorstep_core.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -22,6 +23,18 @@ void main() {
       expect(looksLikePhone('+263771234567'), isTrue);
       expect(looksLikePhone('123'), isFalse);
     });
+
+    test('Zimbabwean number plates', () {
+      expect(normalizeZwPlate('aez1234'), 'AEZ 1234');
+      expect(normalizeZwPlate(' AEZ-1234 '), 'AEZ 1234');
+      expect(normalizeZwPlate('AEZ  1234'), 'AEZ 1234');
+      for (final bad in ['AE 1234', 'AEZ 123', '1234 AEZ', 'ABCD 1234', '']) {
+        expect(normalizeZwPlate(bad), isNull, reason: bad);
+      }
+      expect(vehicleLabel('BICYCLE'), 'Bicycle');
+      expect(categoryIcon('electronics'), Icons.devices_rounded);
+      expect(categoryIcon('something-new'), Icons.storefront_rounded);
+    });
   });
 
   group('models', () {
@@ -35,6 +48,7 @@ void main() {
       'rider': {
         'id': 'r1',
         'name': 'Tawanda',
+        'photoUrl': 'https://example.com/tawanda.webp',
         'phone': '+263773000201',
         'vehicleType': 'MOTORBIKE',
         'vehicleDescription': 'Red Honda Ace',
@@ -73,6 +87,8 @@ void main() {
       expect(order.status.isActive, isTrue);
       expect(order.itemCount, 2);
       expect(order.rider!.location!.lat, -17.8);
+      expect(order.rider!.photoUrl, 'https://example.com/tawanda.webp');
+      expect(order.rider!.vehiclePlate, 'AEF 1234');
       expect(order.dropoff.landmark, 'Blue gate opposite Spar');
       expect(order.dropoff.contactPhone, '+263774000301');
       expect(order.amounts.totalLocalCents, 43148);
@@ -113,8 +129,69 @@ void main() {
       expect(RiderDashboard.fromJson({'registered': false}).registered, isFalse);
     });
 
+    test('cyclists have no plate; profiles carry photos', () {
+      final rider = OrderRider.fromJson({'id': 'r2', 'name': 'Nyasha', 'vehicleType': 'BICYCLE', 'vehicleDescription': '', 'vehiclePlate': null, 'ratingAvg': 0, 'location': null});
+      expect(rider.vehiclePlate, isNull);
+      expect(rider.vehicleType, 'BICYCLE');
+      final profile = Profile.fromJson({'id': 'u1', 'phone': '+263774000301', 'roles': ['CUSTOMER'], 'avatarUrl': 'https://example.com/me.webp'});
+      expect(profile.avatarUrl, 'https://example.com/me.webp');
+      expect(Profile.fromJson(profile.toJson()).avatarUrl, 'https://example.com/me.webp');
+    });
+
     test('unknown status falls back safely', () {
       expect(OrderStatus.parse('SOMETHING_NEW'), OrderStatus.placed);
+    });
+  });
+
+  group('widgets', () {
+    testWidgets('avatar falls back to initials without a photo', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: UserAvatar(url: null, name: 'Tatenda Moyo'))));
+      expect(find.text('TM'), findsOneWidget);
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: PlateChip(plate: 'AEZ 1234'))));
+      expect(find.text('AEZ 1234'), findsOneWidget);
+    });
+
+    testWidgets('skeletons fit unbounded and short spaces', (tester) async {
+      for (final layout in SkeletonLayout.values) {
+        await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                LoadingView(layout: layout, message: 'Loading', compact: true),
+                SizedBox(height: 120, child: SkeletonView(layout: layout)),
+              ],
+            ),
+          ),
+        ));
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(tester.takeException(), isNull, reason: layout.name);
+      }
+      // Inside SliverFillRemaining, which measures its child's intrinsic height.
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(body: CustomScrollView(slivers: [SliverFillRemaining(hasScrollBody: false, child: LoadingView(layout: SkeletonLayout.cards))])),
+      ));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('opening splash plays before showing the app', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: OpeningSplashGate(ready: true, tagline: 'Rider app', child: Text('Home'))));
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.text('Made by Hamza Protech Solutions'), findsOneWidget);
+      expect(find.text('Home'), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1800));
+      expect(find.text('Home'), findsOneWidget);
+    });
+
+    testWidgets('opening splash waits until the app is ready', (tester) async {
+      Widget gate(bool ready) => MaterialApp(home: OpeningSplashGate(ready: ready, child: const Text('Home')));
+      await tester.pumpWidget(gate(false));
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('Home'), findsNothing);
+      await tester.pumpWidget(gate(true));
+      await tester.pump();
+      expect(find.text('Home'), findsOneWidget);
     });
   });
 }

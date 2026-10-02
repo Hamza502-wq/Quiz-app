@@ -14,3 +14,4 @@ export * from './LoginPage';
 export * from './AppShell';
 export * from './pwa';
 export * from './ChangePassword';
+export * from './Avatar';

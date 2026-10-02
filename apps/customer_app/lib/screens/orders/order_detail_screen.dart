@@ -112,7 +112,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Order')),
-        body: _error != null ? ErrorView(error: _error!, onRetry: _load) : const LoadingView(message: 'Loading your order…'),
+        body: _error != null ? ErrorView(error: _error!, onRetry: _load) : const LoadingView(message: 'Loading your order…', layout: SkeletonLayout.detail),
       );
     }
     final lowData = context.watch<AppSettings>().lowDataMode;
@@ -341,14 +341,15 @@ class _RiderCard extends StatelessWidget {
     return SectionCard(
       child: Row(
         children: [
-          const CircleAvatar(radius: 24, backgroundColor: DsColors.orangeLight, child: Icon(Icons.delivery_dining_rounded, color: DsColors.orange)),
+          UserAvatar(url: r.photoUrl, name: r.name ?? 'Rider', size: 52),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(r.name ?? 'Your rider', style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text('${r.vehicleDescription.isEmpty ? 'Motorbike' : r.vehicleDescription} · ${r.vehiclePlate}', style: const TextStyle(color: DsColors.muted, fontSize: 13)),
+                Text(r.vehicleDescription.isEmpty ? vehicleLabel(r.vehicleType) : r.vehicleDescription, style: const TextStyle(color: DsColors.muted, fontSize: 13)),
+                if (r.vehiclePlate != null) Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: PlateChip(plate: r.vehiclePlate!)),
                 if (r.ratingAvg > 0) Text('★ ${r.ratingAvg.toStringAsFixed(1)}', style: const TextStyle(color: DsColors.orange, fontWeight: FontWeight.w600)),
               ],
             ),

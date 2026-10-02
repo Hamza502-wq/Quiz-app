@@ -90,6 +90,7 @@ describe('Netlify Functions entry point', () => {
           addressLine: '12 Samora Machel Ave, Harare',
           lat: -17.829,
           lng: 31.052,
+          logoUrl: 'https://doorstep.example/uploads/public/vendor/logo.webp',
         },
         accessToken,
       ),

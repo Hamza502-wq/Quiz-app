@@ -30,10 +30,10 @@ export const orderInclude = {
       lng: true,
       heading: true,
       locationUpdatedAt: true,
-      user: { select: { name: true, phone: true } },
+      user: { select: { name: true, phone: true, avatarUrl: true } },
     },
   },
-  customer: { select: { id: true, userId: true, user: { select: { name: true, phone: true } } } },
+  customer: { select: { id: true, userId: true, user: { select: { name: true, phone: true, avatarUrl: true } } } },
   payments: { orderBy: { createdAt: 'desc' } },
   ratings: { select: { target: true, score: true, comment: true } },
   dispute: {
@@ -98,6 +98,7 @@ export function presentOrder(order: OrderWithRelations | OrderWithDetail, viewer
       ? {
           id: order.rider.id,
           name: order.rider.user.name,
+          photoUrl: order.rider.user.avatarUrl,
           phone: showRiderContact ? order.rider.user.phone : undefined,
           vehicleType: order.rider.vehicleType,
           vehicleDescription: [order.rider.vehicleColor, order.rider.vehicleMake, order.rider.vehicleModel]
@@ -121,6 +122,7 @@ export function presentOrder(order: OrderWithRelations | OrderWithDetail, viewer
         ? undefined
         : {
             name: order.customer.user.name ?? 'Customer',
+            photoUrl: order.customer.user.avatarUrl,
             phone: showCustomerContact ? order.customer.user.phone : undefined,
           },
     pickup: {

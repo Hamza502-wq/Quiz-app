@@ -83,6 +83,13 @@ export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   BANK: 'Bank transfer',
 };
 
+export const VEHICLE_LABEL: Record<string, string> = { MOTORBIKE: 'Motorbike', BICYCLE: 'Bicycle', CAR: 'Car' };
+
+/** "Motorbike", "Bicycle" or "Car". */
+export function vehicleLabel(type: string | null | undefined): string {
+  return (type && VEHICLE_LABEL[type]) || 'Vehicle';
+}
+
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export function bpsToPercent(bps: number | null | undefined): string {

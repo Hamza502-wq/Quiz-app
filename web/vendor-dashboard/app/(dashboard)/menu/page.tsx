@@ -70,7 +70,7 @@ export default function MenuPage() {
     }
   };
 
-  if ((sections.loading && !sections.data) || (products.loading && !products.data)) return <LoadingBlock label="Loading menu…" />;
+  if ((sections.loading && !sections.data) || (products.loading && !products.data)) return <LoadingBlock label="Loading menu…" variant="list" />;
   if (sections.error || products.error) {
     return (
       <ErrorState
@@ -89,7 +89,7 @@ export default function MenuPage() {
   return (
     <div>
       <PageHeader
-        title="Menu & stock"
+        title="Products & stock"
         subtitle="Products, prices and stock levels customers see in the app."
         actions={
           <>

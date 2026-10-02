@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../state/rider_controller.dart';
-import 'document_picker.dart';
 
 /// Proof of delivery: the customer's 4-digit PIN, or a photo.
 class ProofScreen extends StatefulWidget {
@@ -116,7 +115,7 @@ class _ProofScreenState extends State<ProofScreen> {
                 child: Container(
                   decoration: BoxDecoration(color: DsColors.canvas, borderRadius: BorderRadius.circular(18), border: Border.all(color: DsColors.line)),
                   child: _uploading
-                      ? const LoadingView(message: 'Uploading photo…')
+                      ? const BusyView(message: 'Uploading photo…')
                       : _photoUrl != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(18),

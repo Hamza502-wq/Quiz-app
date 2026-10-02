@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 
 import 'feedback.dart';
+import 'skeleton.dart';
 
 /// Loads data with a loading state, an error state with retry, and
 /// pull-to-refresh. Use [AsyncViewState.reload] via a GlobalKey to refresh.
 class AsyncView<T> extends StatefulWidget {
-  const AsyncView({super.key, required this.load, required this.builder, this.loadingMessage, this.refreshable = true});
+  const AsyncView({
+    super.key,
+    required this.load,
+    required this.builder,
+    this.loadingMessage,
+    this.refreshable = true,
+    this.skeleton = SkeletonLayout.list,
+  });
 
   final Future<T> Function() load;
   final Widget Function(BuildContext context, T data, Future<void> Function() reload) builder;
   final String? loadingMessage;
   final bool refreshable;
+
+  /// Shape of the loading skeleton.
+  final SkeletonLayout skeleton;
 
   @override
   State<AsyncView<T>> createState() => AsyncViewState<T>();
@@ -50,7 +61,7 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _data == null) return LoadingView(message: widget.loadingMessage);
+    if (_loading && _data == null) return LoadingView(message: widget.loadingMessage, layout: widget.skeleton);
     if (_error != null && _data == null) return ErrorView(error: _error!, onRetry: reload);
     final content = widget.builder(context, _data as T, reload);
     if (!widget.refreshable) return content;

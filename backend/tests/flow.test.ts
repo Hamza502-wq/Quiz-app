@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { env } from '../src/config/env';
 import { prisma } from '../src/lib/prisma';
 import { updateSettings } from '../src/modules/settings/settings.service';
 import { api, app, auth, login, PHONES, resetDb, seedWorld, waitFor, type Session } from './helpers';
@@ -154,6 +155,7 @@ describe('vendor onboarding & menu', () => {
         lng: 31.04,
         addressLine: '1 Baker St, Avondale',
         landmark: 'Yellow wall',
+        logoUrl: 'https://example.com/bakery-logo.webp',
       });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('PENDING');
@@ -177,6 +179,41 @@ describe('vendor onboarding & menu', () => {
     expect(visible.body.total).toBe(1);
   });
 
+  it('requires a shop logo and accepts non-food shops', async () => {
+    const shop = await login('+263772000198', 'VENDOR', 'Farai');
+    const store = {
+      name: 'Farai Phones',
+      phone: '0772000198',
+      categorySlug: 'electronics',
+      lat: -17.83,
+      lng: 31.05,
+      addressLine: '9 Speke Ave, Harare',
+    };
+    const noLogo = await api().post('/api/v1/vendor/onboarding').set(auth(shop)).send(store);
+    expect(noLogo.status).toBe(400);
+    expect(noLogo.body.error.details.map((d: { path: string }) => d.path)).toContain('logoUrl');
+    const parcels = await api()
+      .post('/api/v1/vendor/onboarding')
+      .set(auth(shop))
+      .send({ ...store, categorySlug: 'parcels', logoUrl: 'https://example.com/logo.webp' });
+    expect(parcels.status).toBe(400);
+    const unknown = await api()
+      .post('/api/v1/vendor/onboarding')
+      .set(auth(shop))
+      .send({ ...store, categorySlug: 'weapons', logoUrl: 'https://example.com/logo.webp' });
+    expect(unknown.status).toBe(400);
+
+    const created = await api()
+      .post('/api/v1/vendor/onboarding')
+      .set(auth(shop))
+      .send({ ...store, logoUrl: 'https://example.com/logo.webp' });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ logoUrl: 'https://example.com/logo.webp', category: { slug: 'electronics' } });
+    // The logo can be replaced but not removed.
+    const removed = await api().patch('/api/v1/vendor/me').set(auth(shop)).send({ logoUrl: null });
+    expect(removed.status).toBe(400);
+  });
+
   it('updates opening hours with validation', async () => {
     const bad = await api()
       .put('/api/v1/vendor/me/hours')
@@ -189,6 +226,72 @@ describe('vendor onboarding & menu', () => {
       .send({ hours: [0, 1, 2, 3, 4, 5, 6].map((d) => ({ dayOfWeek: d, opensAt: '00:00', closesAt: '00:00' })) });
     expect(ok.status).toBe(200);
     expect(ok.body.isOpen).toBe(true);
+  });
+});
+
+describe('profile photos and rider registration', () => {
+  const privateUrl = (userId: string, file: string) => `${env.PUBLIC_BASE_URL}/api/v1/uploads/private/${userId}/${file}`;
+  const registration = (userId: string) => ({
+    nationalId: '63-1234567 A 12',
+    idDocumentUrl: privateUrl(userId, 'id.webp'),
+    licenceNumber: 'LIC-778',
+    licenceDocumentUrl: privateUrl(userId, 'licence.webp'),
+    vehicleType: 'MOTORBIKE',
+    vehiclePlate: 'aez-1234',
+    photoUrl: 'https://example.com/faces/rumbi.webp',
+  });
+
+  it('lets any user set and change a profile photo', async () => {
+    const set = await api().patch('/api/v1/auth/me').set(auth(customer)).send({ avatarUrl: 'https://example.com/faces/tatenda.webp' });
+    expect(set.status).toBe(200);
+    expect(set.body.avatarUrl).toBe('https://example.com/faces/tatenda.webp');
+    const me = await api().get('/api/v1/auth/me').set(auth(customer));
+    expect(me.body.avatarUrl).toBe('https://example.com/faces/tatenda.webp');
+    const bad = await api().patch('/api/v1/auth/me').set(auth(customer)).send({ avatarUrl: 'not a url' });
+    expect(bad.status).toBe(400);
+  });
+
+  it('validates Zimbabwean number plates and requires a photo', async () => {
+    const newRider = await login('+263773000299', 'RIDER', 'Rumbi');
+    const base = registration(newRider.userId);
+    const send = (body: object) => api().post('/api/v1/rider/register').set(auth(newRider)).send(body);
+
+    for (const plate of ['AE 1234', 'AEZ 123', '1234 AEZ', 'ABCD 1234', '']) {
+      const res = await send({ ...base, vehiclePlate: plate });
+      expect(res.status, plate).toBe(400);
+      expect(res.body.error.details[0].path).toBe('vehiclePlate');
+    }
+    const { vehiclePlate: _plate, ...noPlate } = base;
+    void _plate;
+    expect((await send(noPlate)).status).toBe(400);
+    const taken = await send({ ...base, vehiclePlate: 'aef1234' }); // the seeded rider's plate
+    expect(taken.status).toBe(409);
+    const { photoUrl: _photo, ...noPhoto } = base;
+    void _photo;
+    const missingPhoto = await send(noPhoto);
+    expect(missingPhoto.status).toBe(400);
+    expect(missingPhoto.body.error.message).toMatch(/photo/i);
+
+    const ok = await send(base);
+    expect(ok.status).toBe(201);
+    expect(ok.body.rider).toMatchObject({ vehiclePlate: 'AEZ 1234', photoUrl: 'https://example.com/faces/rumbi.webp' });
+    const me = await api().get('/api/v1/auth/me').set(auth(newRider));
+    expect(me.body.avatarUrl).toBe('https://example.com/faces/rumbi.webp');
+
+    // Admins find the rider by plate typed any way.
+    const found = await api().get('/api/v1/admin/riders').query({ q: 'aez1234' }).set(auth(admin));
+    expect(found.body.items.map((r: { id: string }) => r.id)).toEqual([ok.body.rider.id]);
+    expect(found.body.items[0].user.avatarUrl).toBe('https://example.com/faces/rumbi.webp');
+  });
+
+  it('does not ask cyclists for a plate', async () => {
+    const cyclist = await login('+263773000298', 'RIDER', 'Nyasha');
+    const res = await api()
+      .post('/api/v1/rider/register')
+      .set(auth(cyclist))
+      .send({ ...registration(cyclist.userId), vehicleType: 'BICYCLE', vehiclePlate: undefined, photoUrl: 'https://example.com/faces/nyasha.webp' });
+    expect(res.status).toBe(201);
+    expect(res.body.rider.vehiclePlate).toBeNull();
   });
 });
 
@@ -276,6 +379,15 @@ describe('cash order: order → accept → auto-dispatch → deliver → wallet'
     expect(tracking.status).toBe(200);
     expect(tracking.body.rider.location.lat).toBeCloseTo(-17.831);
     expect(tracking.body.etaMinutes).toBeGreaterThan(0);
+
+    // Customers see the rider's photo and plate; riders see the customer's photo.
+    await prisma.user.update({ where: { id: world.riderUser.id }, data: { avatarUrl: 'https://example.com/faces/tawanda.webp' } });
+    const forCustomer = await api().get(`/api/v1/orders/${orderId}`).set(auth(customer));
+    expect(forCustomer.body.rider).toMatchObject({ photoUrl: 'https://example.com/faces/tawanda.webp', vehiclePlate: 'AEF 1234' });
+    const snapshot = await api().get(`/api/v1/orders/${orderId}/tracking`).set(auth(customer));
+    expect(snapshot.body.rider.photoUrl).toBe('https://example.com/faces/tawanda.webp');
+    const forRider = await api().get(`/api/v1/orders/${orderId}`).set(auth(rider));
+    expect(forRider.body.customer.photoUrl).toBe('https://example.com/faces/tatenda.webp');
 
     const msg = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(customer)).send({ body: 'Blue gate please!' });
     expect(msg.status).toBe(201);

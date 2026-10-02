@@ -10,7 +10,16 @@ INSERT INTO categories (id, name, slug, icon, sort_order) VALUES
   ('cat_food', 'Food', 'food', 'restaurant', 1),
   ('cat_groceries', 'Groceries', 'groceries', 'local_grocery_store', 2),
   ('cat_pharmacy', 'Pharmacy', 'pharmacy', 'local_pharmacy', 3),
-  ('cat_parcels', 'Parcels', 'parcels', 'inventory_2', 4)
+  ('cat_parcels', 'Parcels', 'parcels', 'inventory_2', 4),
+  ('cat_electronics', 'Electronics & phones', 'electronics', 'devices', 5),
+  ('cat_fashion', 'Clothing & shoes', 'fashion', 'checkroom', 6),
+  ('cat_beauty', 'Beauty & personal care', 'beauty', 'spa', 7),
+  ('cat_hardware', 'Hardware & tools', 'hardware', 'hardware', 8),
+  ('cat_home', 'Home & kitchen', 'home', 'chair', 9),
+  ('cat_books', 'Books & stationery', 'books', 'menu_book', 10),
+  ('cat_gifts', 'Flowers & gifts', 'gifts', 'local_florist', 11),
+  ('cat_farm', 'Farm & garden', 'farm', 'yard', 12),
+  ('cat_other', 'Other shops', 'other', 'storefront', 13)
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO zones (id, name, city, center_lat, center_lng, radius_km, updated_at)

@@ -8,7 +8,8 @@ export interface LiveRider {
   id: string;
   name: string | null;
   phone: string;
-  vehiclePlate: string;
+  photoUrl: string | null;
+  vehiclePlate: string | null;
   lat: number | null;
   lng: number | null;
   isStale: boolean;
@@ -47,7 +48,7 @@ export function LiveMap({ orders, riders, onSelectOrder }: { orders: Order[]; ri
         <InfoWindow position={{ lat: selected.rider.lat, lng: selected.rider.lng! }} onCloseClick={() => setSelected(null)}>
           <div className="text-sm">
             <p className="font-bold">{selected.rider.name ?? selected.rider.phone}</p>
-            <p>{selected.rider.vehiclePlate}</p>
+            <p>{selected.rider.vehiclePlate ?? 'Bicycle'}</p>
             <p>{selected.rider.activeOrderId ? 'On a delivery' : 'Available'}</p>
             {selected.rider.isStale ? <p className="text-alert">Location is stale</p> : null}
           </div>

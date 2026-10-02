@@ -3,8 +3,8 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ClipboardList, MapPin, Package, ShoppingBag, UserRound } from 'lucide-react';
-import { FlagStripe, InstallAppButton, appLinks, cn, useAuth } from '@doorstep/web-shared';
+import { ChevronDown, ClipboardList, MapPin, Package, ShoppingBag } from 'lucide-react';
+import { Avatar, FlagStripe, InstallAppButton, MADE_BY, appLinks, cn, useAuth } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
 import { DeliverToModal } from './DeliverToModal';
@@ -96,7 +96,17 @@ function SiteHeader() {
           {loading ? (
             <span className="h-9 w-20" aria-hidden />
           ) : user ? (
-            navLink('/account', user.name?.split(' ')[0] ?? 'Account', UserRound)
+            <Link
+              href="/account"
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-semibold transition-colors',
+                pathname.startsWith('/account') ? 'text-brand' : 'text-ink-soft hover:bg-canvas hover:text-ink',
+              )}
+              aria-label="Your account"
+            >
+              <Avatar src={user.avatarUrl} name={user.name ?? user.phone} size="xs" />
+              <span className="hidden md:inline">{user.name?.split(' ')[0] ?? 'Account'}</span>
+            </Link>
           ) : (
             <Link
               href={`/login?next=${encodeURIComponent(pathname)}`}
@@ -120,7 +130,7 @@ function SiteFooter() {
           <p className="text-lg font-bold">
             Door<span className="text-brand">Step</span> Zimbabwe
           </p>
-          <p className="mt-2 text-sm text-white/70">Food, groceries, pharmacy and parcels — delivered to your door.</p>
+          <p className="mt-2 text-sm text-white/70">Food, groceries, medicine, shopping and parcels — delivered to your door.</p>
           <FlagStripe className="mt-4" />
         </div>
         <div className="text-sm">
@@ -176,7 +186,9 @@ function SiteFooter() {
           <InstallAppButton appName="DoorStep" className="mt-3" />
         </div>
       </div>
-      <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">© {new Date().getFullYear()} DoorStep Zimbabwe</div>
+      <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-white/50">
+        © {new Date().getFullYear()} DoorStep Zimbabwe · Made by {MADE_BY}
+      </div>
     </footer>
   );
 }

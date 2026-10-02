@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../utils/format.dart';
 import '../utils/launch.dart';
 import '../widgets/feedback.dart';
+import '../widgets/skeleton.dart';
 
 /// Order chat between the customer and the rider.
 class ChatScreen extends StatefulWidget {
@@ -144,7 +145,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _loading
-                ? const LoadingView()
+                ? const LoadingView(layout: SkeletonLayout.chat)
                 : _error != null
                     ? ErrorView(error: _error!, onRetry: _load)
                     : _messages.isEmpty

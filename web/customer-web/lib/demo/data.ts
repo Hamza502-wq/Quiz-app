@@ -22,6 +22,15 @@ export const DEMO_CATEGORIES = [
   { id: 'cat-groceries', name: 'Groceries', slug: 'groceries', icon: 'local_grocery_store', sortOrder: 2 },
   { id: 'cat-pharmacy', name: 'Pharmacy', slug: 'pharmacy', icon: 'local_pharmacy', sortOrder: 3 },
   { id: 'cat-parcels', name: 'Parcels', slug: 'parcels', icon: 'inventory_2', sortOrder: 4 },
+  { id: 'cat-electronics', name: 'Electronics & phones', slug: 'electronics', icon: 'devices', sortOrder: 5 },
+  { id: 'cat-fashion', name: 'Clothing & shoes', slug: 'fashion', icon: 'checkroom', sortOrder: 6 },
+  { id: 'cat-beauty', name: 'Beauty & personal care', slug: 'beauty', icon: 'spa', sortOrder: 7 },
+  { id: 'cat-hardware', name: 'Hardware & tools', slug: 'hardware', icon: 'hardware', sortOrder: 8 },
+  { id: 'cat-home', name: 'Home & kitchen', slug: 'home', icon: 'chair', sortOrder: 9 },
+  { id: 'cat-books', name: 'Books & stationery', slug: 'books', icon: 'menu_book', sortOrder: 10 },
+  { id: 'cat-gifts', name: 'Flowers & gifts', slug: 'gifts', icon: 'local_florist', sortOrder: 11 },
+  { id: 'cat-farm', name: 'Farm & garden', slug: 'farm', icon: 'yard', sortOrder: 12 },
+  { id: 'cat-other', name: 'Other shops', slug: 'other', icon: 'storefront', sortOrder: 13 },
 ];
 
 type Item = [name: string, priceCents: number, description: string, stock?: number];

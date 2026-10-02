@@ -89,7 +89,7 @@ export default function DashboardPage() {
       {summary.error && !s ? (
         <ErrorState message={summary.error.message} onRetry={() => void summary.reload()} />
       ) : !s ? (
-        <LoadingBlock />
+        <LoadingBlock variant="stats" />
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -123,7 +123,7 @@ export default function DashboardPage() {
         {analytics.error ? (
           <ErrorState message={analytics.error.message} onRetry={() => void analytics.reload()} />
         ) : !analytics.data ? (
-          <LoadingBlock />
+          <LoadingBlock variant="stats" />
         ) : (
           <AnalyticsBody data={analytics.data} />
         )}

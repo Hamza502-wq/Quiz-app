@@ -63,3 +63,34 @@ class BrandAppBarTitle extends StatelessWidget {
     );
   }
 }
+
+/// Developer credit, shown on the opening screen, sign-in and profile screens.
+const kMadeBy = 'Hamza Protech Solutions';
+
+class MadeBy extends StatelessWidget {
+  const MadeBy({super.key});
+
+  @override
+  Widget build(BuildContext context) => const Text(
+        'Made by $kMadeBy',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: DsColors.muted, fontSize: 12),
+      );
+}
+
+/// Icon for a shop category slug (food, groceries, electronics, fashion, …).
+IconData categoryIcon(String? slug) => switch (slug) {
+      'food' => Icons.restaurant_rounded,
+      'groceries' => Icons.local_grocery_store_rounded,
+      'pharmacy' => Icons.local_pharmacy_rounded,
+      'parcels' => Icons.inventory_2_rounded,
+      'electronics' => Icons.devices_rounded,
+      'fashion' => Icons.checkroom_rounded,
+      'beauty' => Icons.spa_rounded,
+      'hardware' => Icons.hardware_rounded,
+      'home' => Icons.chair_rounded,
+      'books' => Icons.menu_book_rounded,
+      'gifts' => Icons.local_florist_rounded,
+      'farm' => Icons.yard_rounded,
+      _ => Icons.storefront_rounded,
+    };

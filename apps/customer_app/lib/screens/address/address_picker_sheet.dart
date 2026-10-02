@@ -32,7 +32,7 @@ class _AddressPicker extends StatelessWidget {
               child: Text('Where should we deliver?', style: Theme.of(context).textTheme.titleLarge),
             ),
             if (controller.loading && controller.addresses.isEmpty)
-              const LoadingView()
+              const LoadingView(compact: true)
             else if (controller.error != null && controller.addresses.isEmpty)
               ErrorView(error: controller.error!, onRetry: controller.load)
             else

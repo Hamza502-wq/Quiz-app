@@ -30,6 +30,8 @@ interface DemoUser {
   phone: string;
   name: string | null;
   email: string | null;
+  /** Absent in demo data saved before profile photos existed. */
+  avatarUrl?: string | null;
   preferredCurrency: Currency;
   notificationChannel: 'SMS' | 'WHATSAPP';
   defaultAddressId: string | null;
@@ -222,6 +224,7 @@ function profile(u: DemoUser): Profile {
     phone: u.phone,
     name: u.name,
     email: u.email,
+    avatarUrl: u.avatarUrl ?? null,
     status: 'ACTIVE',
     roles: ['CUSTOMER'],
     preferredCurrency: u.preferredCurrency,
@@ -372,6 +375,7 @@ function presentOrder(db: DemoDb, o: OrderRecord, now: number): CustomerOrder {
       ? {
           id: rider.id,
           name: rider.name,
+          photoUrl: null,
           phone: rider.phone,
           vehicleType: rider.vehicleType,
           vehicleDescription: rider.vehicleDescription,
@@ -791,6 +795,10 @@ const routes: Array<[method: string, pattern: RegExp, handler: Handler]> = [
       if (b.email !== null && (typeof b.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email))) throw new DemoError(400, 'VALIDATION_ERROR', 'email: Enter a valid email');
       user.email = (b.email as string | null) ?? null;
     }
+    if (b.avatarUrl !== undefined) {
+      if (b.avatarUrl !== null && typeof b.avatarUrl !== 'string') throw new DemoError(400, 'VALIDATION_ERROR', 'avatarUrl: Invalid photo');
+      user.avatarUrl = (b.avatarUrl as string | null) ?? null;
+    }
     if (b.preferredCurrency === 'USD' || b.preferredCurrency === 'ZWG') user.preferredCurrency = b.preferredCurrency;
     if (b.notificationChannel === 'SMS' || b.notificationChannel === 'WHATSAPP') user.notificationChannel = b.notificationChannel;
     return profile(user);
@@ -963,7 +971,7 @@ const routes: Array<[method: string, pattern: RegExp, handler: Handler]> = [
     return {
       orderId: o.id,
       status: o.status,
-      rider: rider ? { name: rider.name, vehiclePlate: rider.vehiclePlate, location: loc ? { ...loc, heading: null, updatedAt: new Date(ctx.now).toISOString() } : null } : null,
+      rider: rider ? { name: rider.name, photoUrl: null, vehiclePlate: rider.vehiclePlate, location: loc ? { ...loc, heading: null, updatedAt: new Date(ctx.now).toISOString() } : null } : null,
       etaMinutes: etaMinutes(o, ctx.now),
       pickup: { lat: o.pickup.lat, lng: o.pickup.lng },
       dropoff: { lat: o.dropoff.lat, lng: o.dropoff.lng },
@@ -1120,6 +1128,15 @@ export function installDemoApi(): void {
     // A little latency so loading states look like the real thing.
     await sleep(120 + Math.random() * 180);
     const parsed = new URL(url);
+    // Photo uploads stay in this browser tab (a temporary object URL).
+    if (parsed.pathname.endsWith('/uploads') && init?.body instanceof FormData) {
+      const file = init.body.get('file');
+      if (!(file instanceof Blob)) {
+        return new Response(JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Choose a photo' } }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      const objectUrl = URL.createObjectURL(file);
+      return new Response(JSON.stringify({ url: objectUrl, thumbUrl: objectUrl, isPrivate: false }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+    }
     const headers = new Headers(init?.headers);
     let body: Record<string, unknown> = {};
     if (typeof init?.body === 'string' && init.body) {

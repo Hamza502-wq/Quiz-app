@@ -34,7 +34,7 @@ export default function PayoutsPage() {
     <div className="space-y-6">
       <PageHeader title="Payouts" subtitle="DoorStep pays your net earnings (sales minus commission) to your payout account." />
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : data ? (

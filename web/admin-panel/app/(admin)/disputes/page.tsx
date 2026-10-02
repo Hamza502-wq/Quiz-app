@@ -68,7 +68,7 @@ interface Refund {
 
 export default function DisputesPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="table" />}>
       <Disputes />
     </Suspense>
   );
@@ -109,7 +109,7 @@ function DisputeList() {
         <option value="">All</option>
       </Select>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (
@@ -284,7 +284,7 @@ function RefundList() {
         <option value="">All</option>
       </Select>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (

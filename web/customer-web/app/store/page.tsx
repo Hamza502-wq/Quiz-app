@@ -30,7 +30,7 @@ import { RatingPill, Stars, StoreCover, StoreLogo } from '@/components/StoreVisu
 
 export default function StorePage() {
   return (
-    <Suspense fallback={<LoadingBlock label="Loading the menu…" />}>
+    <Suspense fallback={<LoadingBlock label="Loading the menu…" variant="menu" />}>
       <StoreLoader />
     </Suspense>
   );
@@ -66,7 +66,7 @@ function StoreLoader() {
       </div>
     );
   }
-  if (!menu.data) return <LoadingBlock label="Loading the menu…" />;
+  if (!menu.data) return <LoadingBlock label="Loading the menu…" variant="menu" />;
   return <Store menu={menu.data} />;
 }
 
@@ -405,7 +405,7 @@ function Reviews({ vendorId }: { vendorId: string }) {
   const [page, setPage] = useState(1);
   const reviews = useApi<Paged<Review>>(`/vendors/${vendorId}/reviews`, { page, pageSize: 10 });
   if (reviews.error && !reviews.data) return <ErrorState message={reviews.error.message} onRetry={() => void reviews.reload()} />;
-  if (!reviews.data) return <LoadingBlock label="Loading reviews…" />;
+  if (!reviews.data) return <LoadingBlock label="Loading reviews…" variant="list" />;
   if (reviews.data.items.length === 0) return <EmptyState title="No reviews yet" message="Be the first to order and leave a review." />;
   return (
     <div>

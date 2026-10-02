@@ -17,7 +17,7 @@ export function RequireCustomer({ children }: { children: ReactNode }) {
     }
   }, [loading, user, router, pathname]);
 
-  if (loading || !user) return <LoadingBlock label="Checking your account…" />;
+  if (loading || !user) return <LoadingBlock label="Checking your account…" variant="page" />;
   if (!user.roles.includes('CUSTOMER')) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-20 text-center">

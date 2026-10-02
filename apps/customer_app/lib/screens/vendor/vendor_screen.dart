@@ -18,6 +18,7 @@ class VendorScreen extends StatelessWidget {
     final api = context.read<ApiClient>();
     return Scaffold(
       body: AsyncView<VendorMenu>(
+        skeleton: SkeletonLayout.menu,
         load: () async => VendorMenu.fromJson(
           await api.get('/vendors/$vendorId', query: {if (address != null) 'lat': address.lat, if (address != null) 'lng': address.lng})
               as Map<String, dynamic>,

@@ -65,6 +65,7 @@ export async function seedWorld() {
   }
   const food = await prisma.category.create({ data: { name: 'Food', slug: 'food', sortOrder: 1 } });
   await prisma.category.create({ data: { name: 'Parcels', slug: 'parcels', sortOrder: 4 } });
+  await prisma.category.create({ data: { name: 'Electronics & phones', slug: 'electronics', sortOrder: 5 } });
   const zone = await prisma.zone.create({
     data: { name: 'Harare Metro', city: 'Harare', centerLat: -17.8292, centerLng: 31.0522, radiusKm: 22 },
   });

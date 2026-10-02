@@ -67,7 +67,7 @@ export default function OrdersPage() {
         </label>
       </div>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (

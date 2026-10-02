@@ -170,7 +170,7 @@ function PlatformSettings() {
     });
   }, [data]);
 
-  if (loading && !data) return <LoadingBlock />;
+  if (loading && !data) return <LoadingBlock variant="form" />;
   if (error || !data) return <ErrorState message={error?.message ?? 'Could not load settings'} onRetry={() => void reload()} />;
 
   const save = async () => {
@@ -290,7 +290,7 @@ function Zones() {
   const { data, error, loading, reload } = useApi<Zone[]>('/admin/zones');
   const [editing, setEditing] = useState<Zone | 'new' | null>(null);
 
-  if (loading && !data) return <LoadingBlock />;
+  if (loading && !data) return <LoadingBlock variant="form" />;
   if (error || !data) return <ErrorState message={error?.message ?? 'Could not load zones'} onRetry={() => void reload()} />;
 
   const remove = async (z: Zone) => {
@@ -500,7 +500,7 @@ function Bonuses() {
   const { data, error, loading, reload } = useApi<BonusRule[]>('/admin/bonus-rules');
   const [editing, setEditing] = useState<BonusRule | 'new' | null>(null);
 
-  if (loading && !data) return <LoadingBlock />;
+  if (loading && !data) return <LoadingBlock variant="form" />;
   if (error || !data) return <ErrorState message={error?.message ?? 'Could not load bonuses'} onRetry={() => void reload()} />;
 
   const toggle = async (b: BonusRule, isActive: boolean) => {
@@ -655,7 +655,7 @@ function Categories() {
   const toast = useToast();
   const { data, error, loading, reload } = useApi<Category[]>('/admin/categories');
 
-  if (loading && !data) return <LoadingBlock />;
+  if (loading && !data) return <LoadingBlock variant="form" />;
   if (error || !data) return <ErrorState message={error?.message ?? 'Could not load categories'} onRetry={() => void reload()} />;
 
   const update = async (c: Category, body: Partial<Pick<Category, 'name' | 'isActive' | 'sortOrder'>>) => {

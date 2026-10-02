@@ -67,7 +67,7 @@ export function AssignRiderModal({ order, onClose, onAssigned }: { order: Order 
         </Button>
       </div>
       {candidates.loading && !candidates.data ? (
-        <LoadingBlock label="Finding riders…" />
+        <LoadingBlock label="Finding riders…" variant="list" />
       ) : candidates.error ? (
         <ErrorState message={candidates.error.message} onRetry={() => void candidates.reload()} />
       ) : !candidates.data || candidates.data.length === 0 ? (

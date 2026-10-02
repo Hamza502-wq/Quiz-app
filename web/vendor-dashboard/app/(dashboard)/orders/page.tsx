@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bike, CheckCircle2, ChefHat, Clock, PackageCheck, XCircle } from 'lucide-react';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -14,9 +15,10 @@ import {
   LoadingBlock,
   Modal,
   OrderStatusBadge,
-  PAYMENT_METHOD_LABEL,
   PageHeader,
   Pagination,
+  PAYMENT_METHOD_LABEL,
+  PlateBadge,
   Table,
   Tabs,
   Td,
@@ -140,7 +142,7 @@ function Board() {
     }
   };
 
-  if (loading && !data) return <LoadingBlock label="Loading orders…" />;
+  if (loading && !data) return <LoadingBlock label="Loading orders…" variant="cards" />;
   if (error && !data) return <ErrorState message={error.message} onRetry={() => void reload()} />;
 
   return (
@@ -306,7 +308,7 @@ function AcceptModal({ order, onClose, onDone }: { order: Order | null; onClose:
           </button>
         ))}
       </div>
-      <Field label="Preparation time (minutes)">
+      <Field label="Ready in (minutes)">
         <Input type="number" min={1} max={180} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
       </Field>
       <div className="mt-3">
@@ -382,9 +384,24 @@ function OrderDetailModal({ order, onClose }: { order: Order | null; onClose: ()
             <OrderStatusBadge status={order.status} />
             <span className="text-muted">{formatDateTime(order.timestamps.placedAt ?? order.timestamps.createdAt)}</span>
           </div>
-          <div>
-            <p className="font-semibold">Customer</p>
-            <p>{order.customer?.name}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-3">
+              <Avatar src={order.customer?.photoUrl} name={order.customer?.name ?? 'Customer'} size="md" />
+              <div>
+                <p className="text-xs text-muted">Customer</p>
+                <p className="font-semibold">{order.customer?.name}</p>
+              </div>
+            </div>
+            {order.rider ? (
+              <div className="flex items-center gap-3">
+                <Avatar src={order.rider.photoUrl} name={order.rider.name ?? 'Rider'} size="md" />
+                <div>
+                  <p className="text-xs text-muted">Rider collecting</p>
+                  <p className="font-semibold">{order.rider.name ?? 'Rider'}</p>
+                  <PlateBadge plate={order.rider.vehiclePlate} className="mt-0.5" />
+                </div>
+              </div>
+            ) : null}
           </div>
           <table className="w-full">
             <tbody>
@@ -452,7 +469,7 @@ function History() {
         </select>
       </div>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (

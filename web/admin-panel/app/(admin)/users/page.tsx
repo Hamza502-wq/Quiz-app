@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ShieldPlus } from 'lucide-react';
 import {
+  Avatar,
   Badge,
   Button,
   EmptyState,
@@ -19,6 +20,7 @@ import {
   Td,
   Th,
   api,
+  config,
   formatDate,
   timeAgo,
   useApi,
@@ -26,7 +28,6 @@ import {
   useToast,
   type Paged,
   type RoleName,
-  config,
 } from '@doorstep/web-shared';
 
 interface AdminUser {
@@ -34,6 +35,7 @@ interface AdminUser {
   phone: string;
   name: string | null;
   email: string | null;
+  avatarUrl: string | null;
   status: 'ACTIVE' | 'SUSPENDED';
   lastSeenAt: string | null;
   createdAt: string;
@@ -82,7 +84,7 @@ export default function UsersPage() {
         </Select>
       </div>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (
@@ -105,11 +107,16 @@ export default function UsersPage() {
               {data.items.map((u) => (
                 <tr key={u.id}>
                   <Td>
-                    <span className="font-semibold">{u.name ?? '—'}</span>
-                    <span className="block text-xs text-muted">
-                      {u.phone}
-                      {u.email ? ` · ${u.email}` : ''}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <Avatar src={u.avatarUrl} name={u.name ?? u.phone} size="sm" />
+                      <div className="min-w-0">
+                        <span className="font-semibold">{u.name ?? '—'}</span>
+                        <span className="block text-xs text-muted">
+                          {u.phone}
+                          {u.email ? ` · ${u.email}` : ''}
+                        </span>
+                      </div>
+                    </div>
                   </Td>
                   <Td>
                     <div className="flex flex-wrap gap-1">

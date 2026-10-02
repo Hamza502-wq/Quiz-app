@@ -15,6 +15,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_secure_storage: ^11.2.0
+  image_picker: ^1.2.3
   intl: ^0.20.3
   provider: ^6.1.5+1
   shared_preferences: ^2.5.5

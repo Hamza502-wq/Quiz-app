@@ -6,6 +6,7 @@ import { prisma } from '../../lib/prisma';
 import { badRequest, conflict, notFound } from '../../lib/errors';
 import { isValidPolygon } from '../../lib/geo';
 import { formatMoney } from '../../lib/money';
+import { normalizeZwPlate } from '../../lib/plate';
 import { optionalTrimmed, passwordSchema, phoneSchema, trimmed } from '../../lib/validation';
 import { emitTo, rooms, ServerEvents } from '../../realtime/io';
 import { ensureRole, hashPassword } from '../auth/auth.service';
@@ -90,7 +91,7 @@ defineRoute(adminRouter, {
       }),
       prisma.rider.findMany({
         where: { status: 'APPROVED', isOnline: true },
-        include: { user: { select: { name: true, phone: true } } },
+        include: { user: { select: { name: true, phone: true, avatarUrl: true } } },
       }),
     ]);
     const busy = new Map(orders.filter((o) => o.riderId).map((o) => [o.riderId!, o.id]));
@@ -101,6 +102,7 @@ defineRoute(adminRouter, {
         id: r.id,
         name: r.user.name,
         phone: r.user.phone,
+        photoUrl: r.user.avatarUrl,
         vehicleType: r.vehicleType,
         vehiclePlate: r.vehiclePlate,
         lat: r.lat,
@@ -429,7 +431,7 @@ defineRoute(adminRouter, {
       ...(query.q
         ? {
             OR: [
-              { vehiclePlate: { contains: query.q.toUpperCase() } },
+              { vehiclePlate: { contains: normalizeZwPlate(query.q) ?? query.q.toUpperCase() } },
               { user: { name: { contains: query.q, mode: 'insensitive' } } },
               { user: { phone: { contains: query.q.replace(/\s/g, '') } } },
             ],
@@ -440,7 +442,7 @@ defineRoute(adminRouter, {
       prisma.rider.findMany({
         where,
         include: {
-          user: { select: { name: true, phone: true, status: true } },
+          user: { select: { name: true, phone: true, status: true, avatarUrl: true } },
           wallet: { select: { balanceCents: true } },
           zone: { select: { id: true, name: true } },
         },
@@ -471,7 +473,10 @@ defineRoute(adminRouter, {
   handler: async ({ params }) => {
     const rider = await prisma.rider.findUnique({
       where: { id: params.id },
-      include: { user: { select: { id: true, name: true, phone: true, status: true, createdAt: true } }, zone: true },
+      include: {
+        user: { select: { id: true, name: true, phone: true, status: true, avatarUrl: true, createdAt: true } },
+        zone: true,
+      },
     });
     if (!rider) throw notFound('Rider');
     const [wallet, cashCollections, transactions, deliveries] = await Promise.all([
@@ -642,6 +647,7 @@ defineRoute(adminRouter, {
           phone: true,
           name: true,
           email: true,
+          avatarUrl: true,
           status: true,
           lastSeenAt: true,
           createdAt: true,

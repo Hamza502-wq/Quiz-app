@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Bike, KeyRound, MapPin, MessageCircle, Phone, RotateCcw, Star, Store, TriangleAlert } from 'lucide-react';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -14,6 +15,7 @@ import {
   OrderStatusBadge,
   PAYMENT_METHOD_LABEL,
   PaymentStatusBadge,
+  PlateBadge,
   api,
   config,
   formatDateTime,
@@ -23,6 +25,7 @@ import {
   useSocket,
   useSocketEvent,
   useToast,
+  vehicleLabel,
   type LatLng,
 } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
@@ -42,7 +45,7 @@ const RIDER_MOVING = ['PICKED_UP', 'ON_THE_WAY'];
 export default function OrderPage() {
   return (
     <RequireCustomer>
-      <Suspense fallback={<LoadingBlock label="Loading your order…" />}>
+      <Suspense fallback={<LoadingBlock label="Loading your order…" variant="detail" />}>
         <OrderDetail />
       </Suspense>
     </RequireCustomer>
@@ -67,7 +70,7 @@ function OrderDetail() {
       </div>
     );
   }
-  if (!order.data) return <LoadingBlock label="Loading your order…" />;
+  if (!order.data) return <LoadingBlock label="Loading your order…" variant="detail" />;
   return <OrderView order={order.data} setOrder={(o) => order.setData(o)} reload={order.reload} />;
 }
 
@@ -226,13 +229,21 @@ function OrderView({ order, setOrder, reload }: { order: CustomerOrder; setOrder
           {order.rider ? (
             <Card>
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white">
-                  <Bike className="h-6 w-6" aria-hidden />
+                <div className="relative">
+                  <Avatar src={order.rider.photoUrl} name={order.rider.name ?? 'Rider'} size="lg" />
+                  <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ink text-white">
+                    <Bike className="h-3.5 w-3.5" aria-hidden />
+                  </span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{order.rider.name ?? 'Your rider'}</p>
-                  <p className="text-sm text-muted">
-                    {order.rider.vehicleDescription || order.rider.vehicleType} · {order.rider.vehiclePlate}
+                  {order.rider.vehiclePlate ? (
+                    <p className="mt-1 flex items-center gap-2 text-xs text-muted">
+                      <PlateBadge plate={order.rider.vehiclePlate} /> Check the plate before you hand over your PIN
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-sm text-muted">
+                    {order.rider.vehicleDescription || vehicleLabel(order.rider.vehicleType)}
                     {order.rider.ratingAvg > 0 ? (
                       <span className="ml-2 inline-flex items-center gap-0.5">
                         <Star className="h-3.5 w-3.5 fill-flag-yellow text-flag-yellow" aria-hidden /> {order.rider.ratingAvg.toFixed(1)}

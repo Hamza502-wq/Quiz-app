@@ -39,6 +39,7 @@ export async function getProfile(userId: string) {
     phone: user.phone,
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatarUrl,
     status: user.status,
     roles: user.roles.map((r) => r.role.name),
     preferredCurrency: user.preferredCurrency,

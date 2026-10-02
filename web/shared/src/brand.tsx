@@ -23,3 +23,10 @@ export function FlagStripe({ className }: { className?: string }) {
     </div>
   );
 }
+
+/** Developer credit shown in footers, sign-in pages and the opening animation. */
+export const MADE_BY = 'Hamza Protech Solutions';
+
+export function MadeBy({ className }: { className?: string }) {
+  return <p className={cn('text-xs text-muted', className)}>Made by {MADE_BY}</p>;
+}

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: '/',
     name: 'DoorStep Zimbabwe',
     short_name: 'DoorStep',
-    description: 'Food, groceries, pharmacy and parcels delivered to your door.',
+    description: 'Food, groceries, medicine, shopping and parcels delivered to your door.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

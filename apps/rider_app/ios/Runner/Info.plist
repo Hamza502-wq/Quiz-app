@@ -9,9 +9,9 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>While you are online, DoorStep Rider shares your location in the background so customers can track their delivery.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos of your documents and proof of delivery.</string>
+	<string>Take your profile photo and photos of your documents and proof of delivery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose photos of your ID, licence and vehicle.</string>
+	<string>Choose your profile photo and photos of your ID, licence and vehicle.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

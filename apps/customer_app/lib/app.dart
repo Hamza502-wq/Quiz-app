@@ -58,19 +58,23 @@ class _AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      child: switch (auth.status) {
-        AuthStatus.unknown => const SplashScreen(key: ValueKey('splash'), tagline: 'Delivered to your doorstep'),
-        AuthStatus.signedOut => const PhoneLoginScreen(
-            key: ValueKey('login'),
-            title: 'Welcome to DoorStep',
-            subtitle: 'Food, groceries, pharmacy & parcels — delivered across Zimbabwe.',
-          ),
-        AuthStatus.signedIn => (auth.profile?.name ?? '').trim().isEmpty
-            ? const ProfileSetupScreen(key: ValueKey('setup'))
-            : const HomeShell(key: ValueKey('home')),
-      },
+    return OpeningSplashGate(
+      ready: auth.status != AuthStatus.unknown,
+      tagline: 'Delivered to your doorstep',
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: switch (auth.status) {
+          AuthStatus.unknown => const SplashScreen(key: ValueKey('splash'), tagline: 'Delivered to your doorstep'),
+          AuthStatus.signedOut => const PhoneLoginScreen(
+              key: ValueKey('login'),
+              title: 'Welcome to DoorStep',
+              subtitle: 'Food, groceries, medicine, shopping & parcels — delivered across Zimbabwe.',
+            ),
+          AuthStatus.signedIn => (auth.profile?.name ?? '').trim().isEmpty
+              ? const ProfileSetupScreen(key: ValueKey('setup'))
+              : const HomeShell(key: ValueKey('home')),
+        },
+      ),
     );
   }
 }

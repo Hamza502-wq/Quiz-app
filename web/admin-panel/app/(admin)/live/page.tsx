@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bike, MapPin } from 'lucide-react';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -67,7 +68,7 @@ export default function LivePage() {
   });
   useSocketEvent('rider:status', () => void reload());
 
-  if (loading && !data) return <LoadingBlock label="Loading live operations…" />;
+  if (loading && !data) return <LoadingBlock label="Loading live operations…" variant="detail" />;
   if (error && !data) return <ErrorState message={error.message} onRetry={() => void reload()} />;
   if (!data) return null;
 
@@ -97,12 +98,15 @@ export default function LivePage() {
             {tab === 'riders' ? (
               <ul className="divide-y divide-line">
                 {data.riders.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between py-2.5 text-sm">
-                    <div>
-                      <p className="font-semibold">{r.name ?? r.phone}</p>
-                      <p className="text-xs text-muted">
-                        {r.vehiclePlate} · updated {timeAgo(r.locationUpdatedAt)}
-                      </p>
+                  <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar src={r.photoUrl} name={r.name ?? r.phone} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{r.name ?? r.phone}</p>
+                        <p className="text-xs text-muted">
+                          {r.vehiclePlate ?? 'Bicycle'} · updated {timeAgo(r.locationUpdatedAt)}
+                        </p>
+                      </div>
                     </div>
                     {r.isStale ? <Badge tone="gray">Stale GPS</Badge> : r.activeOrderId ? <Badge tone="dark">Busy</Badge> : <Badge tone="green">Available</Badge>}
                   </li>

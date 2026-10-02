@@ -44,9 +44,10 @@ export interface RiderRegistration {
   vehicleType: 'MOTORBIKE' | 'BICYCLE' | 'CAR';
   vehicleMake?: string;
   vehicleModel?: string;
-  vehiclePlate: string;
+  vehiclePlate?: string;
   vehicleColor?: string;
   vehiclePhotoUrl?: string;
+  photoUrl?: string;
   name?: string;
 }
 
@@ -57,10 +58,23 @@ export async function registerRider(userId: string, input: RiderRegistration) {
 
   const existing = await prisma.rider.findUnique({ where: { userId } });
   if (existing && existing.status !== 'REJECTED') throw conflict('You have already registered.');
-  const { name, ...data } = input;
+  const { name, photoUrl, ...rest } = input;
+  const data = { ...rest, vehiclePlate: rest.vehiclePlate ?? null };
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatarUrl: true } });
+  if (!photoUrl && !user.avatarUrl) throw badRequest('Add a clear photo of your face so customers can recognise you.');
+  if (data.vehiclePlate) {
+    const plateTaken = await prisma.rider.findFirst({
+      where: { vehiclePlate: data.vehiclePlate, userId: { not: userId }, status: { not: 'REJECTED' } },
+      select: { id: true },
+    });
+    if (plateTaken) throw conflict(`The number plate ${data.vehiclePlate} is already registered to another rider.`);
+  }
 
   const rider = await prisma.$transaction(async (tx) => {
-    if (name) await tx.user.update({ where: { id: userId }, data: { name } });
+    if (name || photoUrl) {
+      await tx.user.update({ where: { id: userId }, data: { ...(name ? { name } : {}), ...(photoUrl ? { avatarUrl: photoUrl } : {}) } });
+    }
     const r = existing
       ? await tx.rider.update({ where: { id: existing.id }, data: { ...data, status: 'PENDING', rejectionReason: null } })
       : await tx.rider.create({ data: { ...data, userId } });
@@ -70,7 +84,7 @@ export async function registerRider(userId: string, input: RiderRegistration) {
   notifyAdminsAsync({
     type: 'RIDER_PENDING',
     title: 'Rider awaiting approval',
-    body: `${name ?? 'A new rider'} (${input.vehiclePlate}) submitted documents for review.`,
+    body: `${name ?? 'A new rider'} (${input.vehiclePlate ?? 'bicycle'}) submitted documents for review.`,
     data: { riderId: rider.id },
   });
   return rider;
@@ -79,7 +93,7 @@ export async function registerRider(userId: string, input: RiderRegistration) {
 export async function getRiderDashboard(userId: string) {
   const rider = await prisma.rider.findUnique({
     where: { userId },
-    include: { user: { select: { name: true, phone: true } }, zone: { select: { id: true, name: true } } },
+    include: { user: { select: { name: true, phone: true, avatarUrl: true } }, zone: { select: { id: true, name: true } } },
   });
   if (!rider) return { registered: false as const };
 
@@ -100,6 +114,7 @@ export async function getRiderDashboard(userId: string) {
       id: rider.id,
       name: rider.user.name,
       phone: rider.user.phone,
+      photoUrl: rider.user.avatarUrl,
       status: rider.status,
       rejectionReason: rider.rejectionReason,
       isOnline: rider.isOnline,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarChart3, ClipboardList, Home, Store, UtensilsCrossed, Wallet } from 'lucide-react';
+import { BarChart3, ClipboardList, Home, Package, Store, Wallet } from 'lucide-react';
 import {
   ApiError,
   AppShell,
@@ -21,7 +21,7 @@ import { VendorProvider } from '@/components/VendorContext';
 const NAV: NavItem[] = [
   { href: '/', label: 'Overview', icon: Home },
   { href: '/orders', label: 'Orders', icon: ClipboardList },
-  { href: '/menu', label: 'Menu & stock', icon: UtensilsCrossed },
+  { href: '/menu', label: 'Products & stock', icon: Package },
   { href: '/store', label: 'Store profile', icon: Store },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/payouts', label: 'Payouts', icon: Wallet },
@@ -69,7 +69,7 @@ function VendorShell({ children }: { children: ReactNode }) {
   if (!vendor) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <LoadingBlock label="Loading your store…" />
+        <LoadingBlock label="Loading your store…" variant="page" />
       </div>
     );
   }
@@ -103,7 +103,7 @@ function VendorShell({ children }: { children: ReactNode }) {
       <AppShell nav={NAV} product="Shop" headerExtra={header}>
         {vendor.status === 'PENDING' ? (
           <div className="mb-6 rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-sm text-ink">
-            <strong>Your store is under review.</strong> Set up your menu and opening hours now — you&apos;ll be visible to customers as soon as the
+            <strong>Your store is under review.</strong> Add your products and opening hours now — you&apos;ll be visible to customers as soon as the
             DoorStep team approves you.
           </div>
         ) : null}

@@ -60,6 +60,7 @@ class _WalletTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final api = context.read<ApiClient>();
     return AsyncView<_WalletData>(
+      skeleton: SkeletonLayout.detail,
       load: () async {
         final results = await Future.wait([api.get('/rider/wallet'), api.get('/rider/wallet/transactions', query: {'pageSize': 50})]);
         return _WalletData(

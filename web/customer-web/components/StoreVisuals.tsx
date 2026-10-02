@@ -1,4 +1,19 @@
-import { Package, Pill, ShoppingBasket, Star, Store, UtensilsCrossed } from 'lucide-react';
+import {
+  BookOpen,
+  Gift,
+  Hammer,
+  Package,
+  Pill,
+  Shirt,
+  ShoppingBasket,
+  Smartphone,
+  Sofa,
+  Sparkles,
+  Sprout,
+  Star,
+  Store,
+  UtensilsCrossed,
+} from 'lucide-react';
 import { cn } from '@doorstep/web-shared';
 import { categoryPhoto } from '@/lib/photos';
 import { Photo } from './Photo';
@@ -8,6 +23,15 @@ const CATEGORY_ICONS: Record<string, typeof Store> = {
   groceries: ShoppingBasket,
   pharmacy: Pill,
   parcels: Package,
+  electronics: Smartphone,
+  fashion: Shirt,
+  beauty: Sparkles,
+  hardware: Hammer,
+  home: Sofa,
+  books: BookOpen,
+  gifts: Gift,
+  farm: Sprout,
+  other: Store,
 };
 
 export function CategoryIcon({ slug, className }: { slug: string | undefined; className?: string }) {

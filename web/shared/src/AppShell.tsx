@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from './auth';
-import { AppIcon, FlagStripe, Logo } from './brand';
+import { AppIcon, FlagStripe, Logo, MadeBy } from './brand';
+import { Avatar, ProfilePhotoEditor } from './Avatar';
 import { config } from './config';
 import { SocketProvider, useSocket } from './socket';
 import { MapsProvider } from './maps';
@@ -32,7 +33,7 @@ export function AuthGate({ role, children }: { role: RoleName; children: ReactNo
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <LoadingBlock label="Signing you in…" />
+        <LoadingBlock label="Signing you in…" variant="page" />
       </div>
     );
   }
@@ -115,8 +116,7 @@ export function AppShell({
         ))}
       </ul>
       <div className="border-t border-line p-4">
-        <p className="truncate text-sm font-semibold">{user?.name ?? 'Signed in'}</p>
-        <p className="truncate text-xs text-muted">{user?.phone}</p>
+        <ProfilePhotoEditor size="md" compact />
         <div className="mt-3 flex flex-col items-start gap-2 px-2 text-sm font-semibold text-brand">
           <ChangePasswordButton />
           <InstallAppButton appName={`DoorStep ${product}`} variant="link" />
@@ -124,6 +124,7 @@ export function AppShell({
         <Button variant="ghost" size="sm" className="mt-2 w-full justify-start px-2" icon={<LogOut className="h-4 w-4" />} onClick={() => void logout()}>
           Sign out
         </Button>
+        <MadeBy className="mt-3 px-2" />
       </div>
     </nav>
   );
@@ -157,7 +158,10 @@ export function AppShell({
                 <AppIcon className="h-8 w-8 lg:hidden" />
                 <ConnectionDot />
               </div>
-              <div className="flex items-center gap-3">{headerExtra}</div>
+              <div className="flex items-center gap-3">
+                {headerExtra}
+                <Avatar src={user?.avatarUrl} name={user?.name ?? user?.phone} size="sm" />
+              </div>
             </header>
             <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">{children}</main>
           </div>

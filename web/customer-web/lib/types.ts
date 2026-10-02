@@ -134,7 +134,8 @@ export interface TrackingSnapshot {
   status: Order['status'];
   rider: {
     name: string | null;
-    vehiclePlate: string;
+    photoUrl: string | null;
+    vehiclePlate: string | null;
     location: { lat: number; lng: number; heading: number | null; updatedAt: string | null } | null;
   } | null;
   etaMinutes: number | null;

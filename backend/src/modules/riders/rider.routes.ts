@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { defineRoute, idParams, latLng, paged, pagination } from '../../lib/route';
 import { prisma } from '../../lib/prisma';
-import { imageUrl, optionalTrimmed, trimmed } from '../../lib/validation';
+import { imageUrl, optionalTrimmed, trimmed, zwPlateSchema } from '../../lib/validation';
 import { ensureRole } from '../auth/auth.service';
 import { acceptOffer, declineOffer, getOfferPayload, riderReleaseOrder } from '../dispatch/dispatch.service';
 import { orderInclude, presentOrder, ACTIVE_STATUSES } from '../orders/order.presenter';
@@ -30,28 +30,39 @@ defineRoute(riderRouter, {
   path: '/register',
   basePath,
   tags,
-  summary: 'Submit rider registration (ID, licence and bike details) for admin approval',
-  description: 'Upload documents first via POST /uploads?kind=document and pass the returned URLs.',
+  summary: 'Submit rider registration (photo, ID, licence and bike details) for admin approval',
+  description:
+    'Upload the ID and licence via POST /uploads?kind=document and the profile photo via POST /uploads?kind=avatar, then pass the returned URLs. Number plates use the Zimbabwean format "ABC 1234".',
   auth: 'required',
   status: 201,
-  body: z.object({
-    name: z.string().trim().min(2).max(80).optional(),
-    nationalId: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .regex(/^[0-9]{2}[- ]?[0-9]{6,7}[- ]?[A-Z][- ]?[0-9]{2}$/, 'Enter a valid Zimbabwean ID number, e.g. 63-1234567 A 12'),
-    idDocumentUrl: imageUrl,
-    licenceNumber: trimmed(30),
-    licenceDocumentUrl: imageUrl,
-    licenceExpiry: z.coerce.date().optional(),
-    vehicleType: z.enum(['MOTORBIKE', 'BICYCLE', 'CAR']),
-    vehicleMake: optionalTrimmed(40),
-    vehicleModel: optionalTrimmed(40),
-    vehiclePlate: z.string().trim().toUpperCase().min(2).max(12),
-    vehicleColor: optionalTrimmed(20),
-    vehiclePhotoUrl: imageUrl.optional(),
-  }),
+  body: z
+    .object({
+      name: z.string().trim().min(2).max(80).optional(),
+      nationalId: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[0-9]{2}[- ]?[0-9]{6,7}[- ]?[A-Z][- ]?[0-9]{2}$/, 'Enter a valid Zimbabwean ID number, e.g. 63-1234567 A 12'),
+      idDocumentUrl: imageUrl,
+      licenceNumber: trimmed(30),
+      licenceDocumentUrl: imageUrl,
+      licenceExpiry: z.coerce.date().optional(),
+      vehicleType: z.enum(['MOTORBIKE', 'BICYCLE', 'CAR']),
+      vehicleMake: optionalTrimmed(40),
+      vehicleModel: optionalTrimmed(40),
+      // Zimbabwean plate ("ABC 1234"): required for motorbikes and cars, not asked for bicycles.
+      vehiclePlate: zwPlateSchema.optional(),
+      vehicleColor: optionalTrimmed(20),
+      vehiclePhotoUrl: imageUrl.optional(),
+      // Profile photo shown to customers and admins; required unless the account already has one.
+      photoUrl: imageUrl.optional(),
+    })
+    .superRefine((body, ctx) => {
+      if (body.vehicleType !== 'BICYCLE' && !body.vehiclePlate) {
+        ctx.addIssue({ code: 'custom', path: ['vehiclePlate'], message: 'Enter your number plate, e.g. AEZ 1234' });
+      }
+    })
+    .transform((body) => (body.vehicleType === 'BICYCLE' ? { ...body, vehiclePlate: undefined } : body)),
   handler: async ({ body, user }) => {
     await ensureRole(prisma, user.id, 'RIDER');
     await registerRider(user.id, body);

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Bike, Phone, UserX, XCircle } from 'lucide-react';
 import {
   AuthImage,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -17,6 +18,7 @@ import {
   OrderStatusBadge,
   PAYMENT_METHOD_LABEL,
   PaymentStatusBadge,
+  PlateBadge,
   Textarea,
   api,
   formatDateTime,
@@ -41,7 +43,7 @@ const CANCELLABLE = ['PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'READY_FOR_PICKUP'
 
 export default function OrderDetailPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="detail" />}>
       <OrderDetailView />
     </Suspense>
   );
@@ -63,7 +65,7 @@ function OrderDetailView() {
   const { connected } = useSocket();
   useInterval(() => void reload(), connected ? null : 8_000);
 
-  if (loading && !order) return <LoadingBlock />;
+  if (loading && !order) return <LoadingBlock variant="detail" />;
   if (error || !order) return <ErrorState message={error?.message ?? 'Order not found'} onRetry={() => void reload()} />;
 
   const unassign = async () => {
@@ -201,10 +203,10 @@ function OrderDetailView() {
         <div className="space-y-6">
           <Card className="space-y-3 text-sm">
             <h2 className="font-bold">People</h2>
-            <Person title="Customer" name={order.customer?.name} phone={order.customer?.phone} />
-            {order.vendor ? <Person title="Vendor" name={order.vendor.name} phone={order.vendor.phone} /> : null}
+            <Person title="Customer" name={order.customer?.name} phone={order.customer?.phone} photoUrl={order.customer?.photoUrl} />
+            {order.vendor ? <Person title="Shop" name={order.vendor.name} phone={order.vendor.phone} photoUrl={order.vendor.logoUrl} square /> : null}
             {order.rider ? (
-              <Person title="Rider" name={`${order.rider.name ?? ''} · ${order.rider.vehiclePlate}`} phone={order.rider.phone} />
+              <Person title="Rider" name={order.rider.name} phone={order.rider.phone} photoUrl={order.rider.photoUrl} plate={order.rider.vehiclePlate} />
             ) : (
               <p className="text-muted">No rider assigned.</p>
             )}
@@ -326,16 +328,34 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
-function Person({ title, name, phone }: { title: string; name?: string | null; phone?: string | null }) {
+function Person({
+  title,
+  name,
+  phone,
+  photoUrl,
+  plate,
+  square,
+}: {
+  title: string;
+  name?: string | null;
+  phone?: string | null;
+  photoUrl?: string | null;
+  plate?: string | null;
+  square?: boolean;
+}) {
   return (
-    <div>
-      <p className="text-xs font-semibold uppercase text-muted">{title}</p>
-      <p className="font-semibold">{name ?? '—'}</p>
-      {phone ? (
-        <a href={`tel:${phone}`} className="inline-flex items-center gap-1 text-brand hover:underline">
-          <Phone className="h-3.5 w-3.5" /> {phone}
-        </a>
-      ) : null}
+    <div className="flex items-start gap-3">
+      <Avatar src={photoUrl} name={name ?? title} size="md" square={square} />
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase text-muted">{title}</p>
+        <p className="font-semibold">{name ?? '—'}</p>
+        {plate ? <PlateBadge plate={plate} className="mt-0.5" /> : null}
+        {phone ? (
+          <a href={`tel:${phone}`} className="flex items-center gap-1 text-brand hover:underline">
+            <Phone className="h-3.5 w-3.5" /> {phone}
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }

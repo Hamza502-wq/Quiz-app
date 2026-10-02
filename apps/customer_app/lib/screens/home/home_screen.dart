@@ -148,14 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _debounce = Timer(const Duration(milliseconds: 450), _reload);
   }
 
-  IconData _categoryIcon(String slug) => switch (slug) {
-        'food' => Icons.restaurant_rounded,
-        'groceries' => Icons.local_grocery_store_rounded,
-        'pharmacy' => Icons.local_pharmacy_rounded,
-        'parcels' => Icons.inventory_2_rounded,
-        _ => Icons.storefront_rounded,
-      };
-
   @override
   Widget build(BuildContext context) {
     final address = context.watch<AddressController>().selected;
@@ -228,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onChanged: _onSearchChanged,
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
-                        hintText: 'Search stores or dishes',
+                        hintText: 'Search shops or products',
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _search.text.isEmpty
                             ? null
@@ -255,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     for (final c in _categories)
                       _CategoryTile(
                         label: c.name,
-                        icon: _categoryIcon(c.slug),
+                        icon: categoryIcon(c.slug),
                         selected: _category == c.slug,
                         onTap: () {
                           if (c.slug == 'parcels') {
@@ -312,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             if (_loading)
-              const SliverFillRemaining(hasScrollBody: false, child: LoadingView(message: 'Finding stores near you…'))
+              const SliverFillRemaining(hasScrollBody: false, child: LoadingView(message: 'Finding stores near you…', layout: SkeletonLayout.cards))
             else if (_error != null)
               SliverFillRemaining(hasScrollBody: false, child: ErrorView(error: _error!, onRetry: _reload))
             else if (_vendors.isEmpty)
@@ -336,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: _vendors.length + (_loadingMore ? 1 : 0),
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, i) {
-                    if (i >= _vendors.length) return const Padding(padding: EdgeInsets.all(16), child: LoadingView());
+                    if (i >= _vendors.length) return const SkeletonCard();
                     final v = _vendors[i];
                     return VendorCard(
                       vendor: v,

@@ -71,7 +71,7 @@ interface Zone {
 
 export default function VendorDetailPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="detail" />}>
       <VendorDetailView />
     </Suspense>
   );
@@ -96,7 +96,7 @@ function VendorDetailView() {
     }
   }, [v]);
 
-  if (loading && !v) return <LoadingBlock />;
+  if (loading && !v) return <LoadingBlock variant="detail" />;
   if (error || !v) return <ErrorState message={error?.message ?? 'Vendor not found'} onRetry={() => void reload()} />;
 
   const changeStatus = async () => {

@@ -5,14 +5,15 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   ApprovalBadge,
+  Avatar,
   EmptyState,
   ErrorState,
   Input,
   LoadingBlock,
   PageHeader,
   Pagination,
-  Tabs,
   Table,
+  Tabs,
   Td,
   Th,
   formatDate,
@@ -26,6 +27,7 @@ interface AdminVendor {
   id: string;
   name: string;
   phone: string;
+  logoUrl: string | null;
   status: ApprovalStatus;
   city: string;
   commissionRateBps: number | null;
@@ -40,7 +42,7 @@ interface AdminVendor {
 
 export default function VendorsPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="table" />}>
       <Vendors />
     </Suspense>
   );
@@ -72,7 +74,7 @@ function Vendors() {
       />
       <Input className="mb-4 max-w-xs" placeholder="Search name or phone…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (
@@ -96,12 +98,17 @@ function Vendors() {
               {data.items.map((v) => (
                 <tr key={v.id} className="hover:bg-canvas/60">
                   <Td>
-                    <Link href={vendorHref(v.id)} className="font-bold hover:text-brand">
-                      {v.name}
-                    </Link>
-                    <span className="block text-xs text-muted">
-                      {v.city} · {v._count.products} products · {v.ratingCount ? `${v.ratingAvg.toFixed(1)}★` : 'unrated'}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <Avatar src={v.logoUrl} name={v.name} size="sm" square />
+                      <div className="min-w-0">
+                        <Link href={vendorHref(v.id)} className="font-bold hover:text-brand">
+                          {v.name}
+                        </Link>
+                        <span className="block text-xs text-muted">
+                          {v.city} · {v._count.products} products · {v.ratingCount ? `${v.ratingAvg.toFixed(1)}★` : 'unrated'}
+                        </span>
+                      </div>
+                    </div>
                   </Td>
                   <Td>{v.category.name}</Td>
                   <Td>

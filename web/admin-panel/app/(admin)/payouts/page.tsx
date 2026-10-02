@@ -39,7 +39,7 @@ interface AdminPayout extends Payout {
 
 export default function PayoutsPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="table" />}>
       <Payouts />
     </Suspense>
   );
@@ -104,7 +104,7 @@ function Payouts() {
         </Select>
       </div>
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (

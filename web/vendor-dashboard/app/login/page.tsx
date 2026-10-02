@@ -6,7 +6,7 @@ import { LoadingBlock, LoginPage, appLinks, useAuth } from '@doorstep/web-shared
 
 export default function VendorLogin() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="form" />}>
       <VendorLoginScreen />
     </Suspense>
   );
@@ -24,7 +24,7 @@ function VendorLoginScreen() {
   return (
     <LoginPage
       title="Shop dashboard"
-      subtitle="Manage your shop, menu and orders on DoorStep"
+      subtitle="Manage your shop, products and orders on DoorStep"
       allowSignup
       signupTitle="Open your shop on DoorStep"
       signupNote="Next you'll add your shop details. We review new shops before they appear to customers."

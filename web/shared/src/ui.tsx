@@ -205,11 +205,179 @@ export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn('h-5 w-5 animate-spin text-brand', className)} aria-label="Loading" />;
 }
 
-export function LoadingBlock({ label = 'Loading…' }: { label?: string }) {
+/** A grey placeholder block with a soft shimmer, shaped like the content that is loading. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn('ds-skeleton rounded-lg', className)} aria-hidden />;
+}
+
+export type SkeletonVariant = 'list' | 'cards' | 'table' | 'detail' | 'stats' | 'form' | 'menu' | 'page';
+
+const rows = (n: number) => Array.from({ length: n }, (_, i) => i);
+
+function SkeletonLines({ widths = ['w-2/3', 'w-1/2'] }: { widths?: string[] }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted" role="status">
-      <Spinner className="h-7 w-7" />
-      {label}
+    <div className="min-w-0 flex-1 space-y-2">
+      {widths.map((w, i) => (
+        <Skeleton key={i} className={cn('h-3.5', i === 0 && 'h-4', w)} />
+      ))}
+    </div>
+  );
+}
+
+function ListSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    <div className="divide-y divide-line rounded-2xl border border-line bg-white">
+      {rows(count).map((i) => (
+        <div key={i} className="flex items-center gap-3 p-4">
+          <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
+          <SkeletonLines widths={[i % 2 ? 'w-1/2' : 'w-2/3', 'w-1/3']} />
+          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CardsSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {rows(count).map((i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-line bg-white">
+          <Skeleton className="aspect-[16/9] w-full rounded-none" />
+          <div className="flex items-center gap-3 p-4">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+            <SkeletonLines widths={['w-3/4', 'w-1/2']} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TableSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="flex gap-4 border-b border-line bg-canvas/60 px-4 py-3">
+        {rows(4).map((i) => (
+          <Skeleton key={i} className="h-3 flex-1" />
+        ))}
+      </div>
+      {rows(count).map((i) => (
+        <div key={i} className="flex items-center gap-4 border-b border-line px-4 py-3.5 last:border-0">
+          <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+          <Skeleton className="h-3.5 flex-[2]" />
+          <Skeleton className="h-3.5 flex-1" />
+          <Skeleton className="hidden h-3.5 flex-1 sm:block" />
+          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {rows(4).map((i) => (
+          <div key={i} className="space-y-3 rounded-2xl border border-line bg-white p-5">
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-7 w-2/3" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-56 w-full rounded-2xl" />
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-5">
+        <Skeleton className="h-14 w-14 shrink-0 rounded-full" />
+        <SkeletonLines widths={['w-1/3', 'w-1/4']} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="space-y-3 rounded-2xl border border-line bg-white p-5 lg:col-span-2">
+          {rows(5).map((i) => (
+            <Skeleton key={i} className={cn('h-3.5', i % 2 ? 'w-5/6' : 'w-full')} />
+          ))}
+        </div>
+        <div className="space-y-3 rounded-2xl border border-line bg-white p-5">
+          {rows(4).map((i) => (
+            <Skeleton key={i} className={cn('h-3.5', i % 2 ? 'w-2/3' : 'w-full')} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-5 rounded-2xl border border-line bg-white p-6">
+      {rows(4).map((i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+      ))}
+      <Skeleton className="h-11 w-40 rounded-xl" />
+    </div>
+  );
+}
+
+function MenuSkeleton() {
+  return (
+    <div className="space-y-5">
+      <Skeleton className="h-40 w-full rounded-2xl sm:h-52" />
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-16 w-16 shrink-0 rounded-2xl" />
+        <SkeletonLines widths={['w-1/2', 'w-1/3']} />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {rows(6).map((i) => (
+          <div key={i} className="flex gap-3 rounded-2xl border border-line bg-white p-4">
+            <SkeletonLines widths={['w-2/3', 'w-full', 'w-1/4']} />
+            <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="w-full max-w-3xl space-y-4 px-4">
+      <Skeleton className="h-7 w-1/3" />
+      <Skeleton className="h-4 w-1/2" />
+      <ListSkeleton count={3} />
+    </div>
+  );
+}
+
+const SKELETONS: Record<SkeletonVariant, () => ReactNode> = {
+  list: () => <ListSkeleton />,
+  cards: () => <CardsSkeleton />,
+  table: () => <TableSkeleton />,
+  detail: () => <DetailSkeleton />,
+  stats: () => <StatsSkeleton />,
+  form: () => <FormSkeleton />,
+  menu: () => <MenuSkeleton />,
+  page: () => <PageSkeleton />,
+};
+
+/**
+ * Loading placeholder: a skeleton of the content that is on its way (list rows,
+ * store cards, a table, …). `label` is announced to screen readers.
+ */
+export function LoadingBlock({ label = 'Loading…', variant = 'list' }: { label?: string; variant?: SkeletonVariant }) {
+  return (
+    <div className="w-full py-2" role="status" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      {SKELETONS[variant]()}
     </div>
   );
 }
@@ -280,6 +448,22 @@ const orderTone: Record<OrderStatus, Tone> = {
   REJECTED: 'red',
   CANCELLED: 'gray',
 };
+
+/** A vehicle number plate, e.g. "AEZ 1234", styled like the plate on the bike. */
+export function PlateBadge({ plate, className }: { plate: string | null | undefined; className?: string }) {
+  if (!plate) return null;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md border-2 border-ink bg-white px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-ink',
+        className,
+      )}
+      aria-label={`Number plate ${plate}`}
+    >
+      {plate}
+    </span>
+  );
+}
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   return <Badge tone={orderTone[status]}>{ORDER_STATUS_LABEL[status]}</Badge>;

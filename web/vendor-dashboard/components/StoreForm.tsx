@@ -12,6 +12,7 @@ import {
   Textarea,
   centsToInput,
   parseMoneyToCents,
+  useApi,
   type LatLng,
   type PayoutMethod,
   type VendorProfile,
@@ -23,7 +24,8 @@ export interface StoreFormValues {
   description?: string;
   phone: string;
   email?: string;
-  categorySlug: 'food' | 'groceries' | 'pharmacy';
+  /** Any shop category from GET /categories (food, groceries, electronics, fashion, …). */
+  categorySlug: string;
   lat: number;
   lng: number;
   addressLine: string;
@@ -37,6 +39,12 @@ export interface StoreFormValues {
   payoutAccount?: string;
   payoutAccountName?: string;
   payoutBankName?: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 /** Store details form used for onboarding and profile editing. */
@@ -55,9 +63,10 @@ export function StoreForm({
   const [description, setDescription] = useState(initial?.description ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? defaultPhone ?? '');
   const [email, setEmail] = useState(initial?.email ?? '');
-  const [category, setCategory] = useState<StoreFormValues['categorySlug']>(
-    (initial?.category?.slug as StoreFormValues['categorySlug']) ?? 'food',
-  );
+  const [category, setCategory] = useState(initial?.category?.slug ?? '');
+  const categories = useApi<Category[]>('/categories');
+  // "Parcels" is the send-a-parcel service, not a kind of shop.
+  const shopCategories = (categories.data ?? []).filter((c) => c.slug !== 'parcels');
   const [location, setLocation] = useState<LatLng | null>(initial ? { lat: initial.lat, lng: initial.lng } : null);
   const [addressLine, setAddressLine] = useState(initial?.addressLine ?? '');
   const [landmark, setLandmark] = useState(initial?.landmark ?? '');
@@ -76,9 +85,11 @@ export function StoreForm({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!category) return setError('Choose the kind of shop you run.');
+    if (!logoUrl) return setError('Add your shop logo or a photo of your shop front. Customers see it next to your name.');
     if (!location) return setError('Drop a pin on the map to set your store location.');
     const prepMinutes = Number(prep);
-    if (!Number.isInteger(prepMinutes) || prepMinutes < 1 || prepMinutes > 180) return setError('Preparation time must be 1–180 minutes.');
+    if (!Number.isInteger(prepMinutes) || prepMinutes < 1 || prepMinutes > 180) return setError('The time to get an order ready must be 1–180 minutes.');
     const minOrderCents = parseMoneyToCents(minOrder || '0');
     if (minOrderCents === null) return setError('Enter a valid minimum order amount.');
     if (payoutMethod === 'BANK' && !payoutBankName.trim()) return setError('Enter your bank name for bank payouts.');
@@ -117,15 +128,23 @@ export function StoreForm({
       <Card className="space-y-4">
         <h2 className="text-lg font-bold">Store details</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Store name">
-            <Input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sadza Republic" />
+          <Field label="Shop name">
+            <Input required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sadza Republic or Avondale Hardware" />
           </Field>
-          <Field label="Category">
-            <Select value={category} onChange={(e) => setCategory(e.target.value as StoreFormValues['categorySlug'])}>
-              <option value="food">Food</option>
-              <option value="groceries">Groceries</option>
-              <option value="pharmacy">Pharmacy</option>
+          <Field label="What do you sell?" hint="Restaurants and every other kind of shop are welcome">
+            <Select required value={category} onChange={(e) => setCategory(e.target.value)} disabled={!categories.data && !categories.error}>
+              <option value="">{categories.data || categories.error ? 'Choose a category…' : 'Loading categories…'}</option>
+              {shopCategories.map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
             </Select>
+            {categories.error ? (
+              <button type="button" className="mt-1 text-xs font-semibold text-brand hover:underline" onClick={() => void categories.reload()}>
+                Couldn&apos;t load categories. Try again
+              </button>
+            ) : null}
           </Field>
           <Field label="Store phone" hint="Customers and riders call this number">
             <Input required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0771 234 567" />
@@ -135,14 +154,14 @@ export function StoreForm({
           </Field>
         </div>
         <Field label="Description (optional)">
-          <Textarea maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What makes your store special?" />
+          <Textarea maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What do you sell, and what makes your shop special?" />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <ImageUpload label="Logo" kind="vendor" value={logoUrl} onChange={(url) => setLogoUrl(url)} />
-          <ImageUpload label="Cover photo" kind="vendor" aspect="wide" value={coverUrl} onChange={(url) => setCoverUrl(url)} />
+          <ImageUpload label="Logo or shop photo (required)" kind="vendor" value={logoUrl} required onChange={(url) => setLogoUrl(url)} />
+          <ImageUpload label="Cover photo (optional)" kind="vendor" aspect="wide" value={coverUrl} onChange={(url) => setCoverUrl(url)} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Average preparation time (minutes)">
+          <Field label="Average time to get an order ready (minutes)">
             <Input type="number" min={1} max={180} required value={prep} onChange={(e) => setPrep(e.target.value)} />
           </Field>
           <Field label="Minimum order (US$)" hint="0 for no minimum">

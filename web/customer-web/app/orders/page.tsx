@@ -56,7 +56,7 @@ function Orders() {
       {orders.error && !orders.data ? (
         <ErrorState message={orders.error.message} onRetry={() => void orders.reload()} />
       ) : !orders.data ? (
-        <LoadingBlock />
+        <LoadingBlock label="Loading your orders…" variant="list" />
       ) : orders.data.items.length === 0 ? (
         <EmptyState
           icon={<ClipboardList className="h-9 w-9" aria-hidden />}

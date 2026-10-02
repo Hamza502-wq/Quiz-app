@@ -118,8 +118,11 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
             ],
             if (rider != null) ...[
               const SizedBox(height: 12),
-              Text('★ ${rider.ratingAvg.toStringAsFixed(1)} rating · ${rider.ratingCount} reviews · ${rider.vehiclePlate}',
-                  textAlign: TextAlign.center, style: const TextStyle(color: DsColors.muted)),
+              Text(
+                ['★ ${rider.ratingAvg.toStringAsFixed(1)} rating', '${rider.ratingCount} reviews', if (rider.vehiclePlate != null) rider.vehiclePlate!].join(' · '),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: DsColors.muted),
+              ),
             ],
           ],
         ),

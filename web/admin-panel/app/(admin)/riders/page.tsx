@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   ApprovalBadge,
+  Avatar,
   Badge,
   EmptyState,
   ErrorState,
@@ -12,6 +13,7 @@ import {
   LoadingBlock,
   PageHeader,
   Pagination,
+  PlateBadge,
   Table,
   Tabs,
   Td,
@@ -19,6 +21,7 @@ import {
   formatDate,
   formatMoney,
   useApi,
+  vehicleLabel,
   type ApprovalStatus,
   type Paged,
 } from '@doorstep/web-shared';
@@ -29,20 +32,20 @@ interface AdminRider {
   status: ApprovalStatus;
   isOnline: boolean;
   vehicleType: string;
-  vehiclePlate: string;
+  vehiclePlate: string | null;
   ratingAvg: number;
   ratingCount: number;
   cashLimitCents: number | null;
   cashOwedCents: number;
   createdAt: string;
-  user: { name: string | null; phone: string; status: string };
+  user: { name: string | null; phone: string; status: string; avatarUrl: string | null };
   wallet: { balanceCents: number } | null;
   zone: { name: string } | null;
 }
 
 export default function RidersPage() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<LoadingBlock variant="table" />}>
       <Riders />
     </Suspense>
   );
@@ -74,7 +77,7 @@ function Riders() {
       />
       <Input className="mb-4 max-w-xs" placeholder="Name, phone or plate…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       {loading && !data ? (
-        <LoadingBlock />
+        <LoadingBlock variant="table" />
       ) : error ? (
         <ErrorState message={error.message} onRetry={() => void reload()} />
       ) : !data || data.items.length === 0 ? (
@@ -98,14 +101,19 @@ function Riders() {
               {data.items.map((r) => (
                 <tr key={r.id} className="hover:bg-canvas/60">
                   <Td>
-                    <Link href={riderHref(r.id)} className="font-bold hover:text-brand">
-                      {r.user.name ?? r.user.phone}
-                    </Link>
-                    <span className="block text-xs text-muted">{r.user.phone}</span>
+                    <div className="flex items-center gap-3">
+                      <Avatar src={r.user.avatarUrl} name={r.user.name ?? r.user.phone} size="sm" />
+                      <div className="min-w-0">
+                        <Link href={riderHref(r.id)} className="font-bold hover:text-brand">
+                          {r.user.name ?? r.user.phone}
+                        </Link>
+                        <span className="block text-xs text-muted">{r.user.phone}</span>
+                      </div>
+                    </div>
                   </Td>
                   <Td>
-                    {r.vehiclePlate}
-                    <span className="block text-xs text-muted">{r.vehicleType.toLowerCase()}</span>
+                    {r.vehiclePlate ? <PlateBadge plate={r.vehiclePlate} /> : null}
+                    <span className="block text-xs text-muted">{vehicleLabel(r.vehicleType)}</span>
                   </Td>
                   <Td>{r.zone?.name ?? '—'}</Td>
                   <Td>

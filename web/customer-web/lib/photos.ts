@@ -11,7 +11,6 @@ export const PHOTOS = {
   food: unsplash('1565299624946-b28f40a0ae38', 700),
   groceries: unsplash('1542838132-92c53300491e', 700),
   pharmacy: unsplash('1587854692152-cbe660dbde88', 700),
-  parcels: unsplash('1566576912321-d58ddd7a6088', 700),
   shopOwner: unsplash('1556740758-90de374c12ad', 800),
   rider: unsplash('1526367790999-0150786686a2', 800),
 } as const;
@@ -25,8 +24,6 @@ export function categoryPhoto(slug: string | undefined): string | null {
       return PHOTOS.groceries;
     case 'pharmacy':
       return PHOTOS.pharmacy;
-    case 'parcels':
-      return PHOTOS.parcels;
     default:
       return null;
   }

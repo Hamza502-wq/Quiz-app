@@ -23,11 +23,7 @@ class VendorCard extends StatelessWidget {
                   height: 130,
                   width: double.infinity,
                   borderRadius: 0,
-                  placeholderIcon: v.categorySlug == 'pharmacy'
-                      ? Icons.local_pharmacy_rounded
-                      : v.categorySlug == 'groceries'
-                          ? Icons.local_grocery_store_rounded
-                          : Icons.restaurant_rounded,
+                  placeholderIcon: categoryIcon(v.categorySlug),
                 ),
                 Positioned(
                   left: 12,

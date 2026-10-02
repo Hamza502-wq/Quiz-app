@@ -50,3 +50,17 @@ bool looksLikePhone(String input) {
   final digits = input.replaceAll(RegExp(r'\D'), '');
   return digits.length >= 9 && digits.length <= 13;
 }
+
+/// Zimbabwean number plates (cars and motorbikes): three letters and four
+/// digits, written "ABC 1234". Accepts any spacing, dashes and letter case;
+/// returns null when the text isn't a Zimbabwean plate.
+String? normalizeZwPlate(String input) {
+  final compact = input.toUpperCase().replaceAll(RegExp(r'[\s-]+'), '');
+  final match = RegExp(r'^([A-Z]{3})(\d{4})$').firstMatch(compact);
+  return match == null ? null : '${match.group(1)} ${match.group(2)}';
+}
+
+const vehicleLabels = {'MOTORBIKE': 'Motorbike', 'BICYCLE': 'Bicycle', 'CAR': 'Car'};
+
+/// "Motorbike", "Bicycle" or "Car".
+String vehicleLabel(String type) => vehicleLabels[type] ?? 'Vehicle';

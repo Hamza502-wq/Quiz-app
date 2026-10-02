@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { defineRoute } from '../../lib/route';
-import { passwordSchema, phoneSchema } from '../../lib/validation';
+import { imageUrl, passwordSchema, phoneSchema } from '../../lib/validation';
 import { loginLimiter, otpRequestIpLimiter, otpRequestPhoneLimiter } from '../../middleware/rateLimit';
 import { prisma } from '../../lib/prisma';
 import { requestOtp, verifyOtp } from './otp.service';
@@ -127,11 +127,13 @@ defineRoute(authRouter, {
   path: '/me',
   basePath,
   tags,
-  summary: 'Update profile and notification preferences',
+  summary: 'Update profile, profile photo and notification preferences',
+  description: 'Upload the photo first via POST /uploads?kind=avatar and pass its URL as `avatarUrl` (null removes it).',
   auth: 'required',
   body: z.object({
     name: z.string().trim().min(2).max(80).optional(),
     email: z.string().trim().email().max(120).nullable().optional(),
+    avatarUrl: imageUrl.nullable().optional(),
     preferredCurrency: z.enum(['USD', 'ZWG']).optional(),
     notificationChannel: z.enum(['SMS', 'WHATSAPP']).optional(),
   }),

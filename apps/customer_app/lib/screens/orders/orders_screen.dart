@@ -166,7 +166,7 @@ class _OrderListState extends State<_OrderList> {
                 itemCount: _orders.length + (_loadingMore ? 1 : 0),
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
-                  if (i >= _orders.length) return const LoadingView();
+                  if (i >= _orders.length) return const SkeletonListTile();
                   final o = _orders[i];
                   return Card(
                     child: InkWell(

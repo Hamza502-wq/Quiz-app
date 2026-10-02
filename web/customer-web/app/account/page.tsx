@@ -14,6 +14,7 @@ import {
   LoadingBlock,
   Modal,
   PageHeader,
+  ProfilePhotoEditor,
   Select,
   Spinner,
   api,
@@ -32,7 +33,7 @@ import { AddressFormModal } from '@/components/AddressFormModal';
 export default function AccountPage() {
   return (
     <RequireCustomer>
-      <Suspense fallback={<LoadingBlock />}>
+      <Suspense fallback={<LoadingBlock variant="form" />}>
         <Account />
       </Suspense>
     </RequireCustomer>
@@ -128,6 +129,7 @@ function ProfileForm({ user, welcome, onSaved }: { user: Profile; welcome: boole
     <Card>
       <form onSubmit={(e) => void submit(e)} className="space-y-4">
         {!welcome ? <h2 className="text-lg font-bold">Profile</h2> : null}
+        <ProfilePhotoEditor />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Your name">
             <Input value={name} maxLength={80} autoFocus={welcome} required onChange={(e) => setName(e.target.value)} />

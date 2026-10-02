@@ -357,11 +357,12 @@ async function afterAssignment(orderId: string): Promise<void> {
     include: { customer: true, rider: { include: { user: true } } },
   });
   if (!order?.rider) return;
+  const plate = order.rider.vehiclePlate ? ` (${order.rider.vehiclePlate})` : '';
   notifyAsync({
     userId: order.customer.userId,
     type: 'RIDER_ASSIGNED',
     title: 'Rider on the way to pickup',
-    body: `${order.rider.user.name ?? 'Your rider'} (${order.rider.vehiclePlate}) is handling order ${order.code}.`,
+    body: `${order.rider.user.name ?? 'Your rider'}${plate} is handling order ${order.code}.`,
     data: { orderId },
   });
   await publishOrderUpdate(orderId);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Send } from 'lucide-react';
-import { Button, InlineError, Input, Spinner, api, cn, formatTime, useApi, useInterval, useSocket, useSocketEvent } from '@doorstep/web-shared';
+import { Button, InlineError, Input, Skeleton, api, cn, formatTime, useApi, useInterval, useSocket, useSocketEvent } from '@doorstep/web-shared';
 import type { ChatMessage } from '@/lib/types';
 
 /** Customer ↔ rider chat for one order, live over Socket.IO. */
@@ -50,8 +50,11 @@ export function ChatPanel({ orderId, canSend }: { orderId: string; canSend: bool
         {messages.error && !messages.data ? (
           <InlineError message={messages.error.message} />
         ) : !messages.data ? (
-          <div className="flex h-full items-center justify-center">
-            <Spinner />
+          <div className="space-y-3" role="status" aria-busy="true">
+            <span className="sr-only">Loading messages…</span>
+            <Skeleton className="h-9 w-2/3 rounded-2xl" />
+            <Skeleton className="ml-auto h-9 w-1/2 rounded-2xl" />
+            <Skeleton className="h-9 w-3/5 rounded-2xl" />
           </div>
         ) : messages.data.length === 0 ? (
           <p className="pt-20 text-center text-sm text-muted">No messages yet. Say hello to your rider.</p>

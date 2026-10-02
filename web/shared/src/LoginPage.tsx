@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { KeyRound, MessageSquareText } from 'lucide-react';
 import { useAuth } from './auth';
-import { FlagStripe, Logo } from './brand';
+import { FlagStripe, Logo, MadeBy } from './brand';
 import { config } from './config';
 import { Button, Field, InlineError, Input, cn } from './ui';
 import type { Profile } from './types';
@@ -221,6 +221,7 @@ export function LoginPage({
           ) : null}
         </div>
         {footer ? <div className="mt-6">{footer}</div> : null}
+        <MadeBy className="mt-6 text-center" />
       </div>
     </div>
   );
