@@ -8,10 +8,13 @@ import { HHMM, TIMEZONE } from '../../lib/time';
 import { slugify, randomCode } from '../../lib/random';
 import { imageUrl, moneyCents, optionalTrimmed, phoneSchema, trimmed } from '../../lib/validation';
 import { ensureRole } from '../auth/auth.service';
+import { findCandidates, manualAssign } from '../dispatch/dispatch.service';
+import { unreadMessageCounts } from '../chat/chat.service';
 import { notifyAdminsAsync } from '../notifications/notification.service';
 import { orderInclude, presentOrder, ACTIVE_STATUSES } from '../orders/order.presenter';
 import { getOrderForUser, transitionOrder } from '../orders/order.service';
 import { findZoneForPoint } from '../pricing/pricing.service';
+import { getSettings } from '../settings/settings.service';
 import { presentProduct, presentVendorPublic, requireOwnVendor } from './vendor.service';
 import { vendorBalance, vendorSalesReport, vendorStatement } from './vendor-reports.service';
 
@@ -424,7 +427,17 @@ defineRoute(vendorPortalRouter, {
       }),
       prisma.order.count({ where }),
     ]);
-    return paged(items.map((o) => presentOrder(o, 'vendor')), total, query.page, query.pageSize);
+    // Badge orders with chat messages the store hasn't read.
+    const unread = await unreadMessageCounts(
+      user.id,
+      items.filter((o) => ACTIVE_STATUSES.includes(o.status)).map((o) => o.id),
+    );
+    return paged(
+      items.map((o) => ({ ...presentOrder(o, 'vendor'), unreadMessages: unread[o.id] ?? 0 })),
+      total,
+      query.page,
+      query.pageSize,
+    );
   },
 });
 
@@ -516,6 +529,66 @@ defineRoute(vendorPortalRouter, {
   handler: async ({ params, user }) => {
     await ownOrder(user.id, params.id);
     await transitionOrder(params.id, 'READY_FOR_PICKUP', { actorId: user.id, from: ['ACCEPTED'] });
+    return (await getOrderForUser(user, params.id)).presented;
+  },
+});
+
+/** The store can pick a rider once it has accepted the order, until someone is on it. */
+function assertNeedsRider(order: { riderId: string | null; status: string }) {
+  if (order.riderId) throw conflict('A rider is already on this order.');
+  if (order.status !== 'ACCEPTED' && order.status !== 'READY_FOR_PICKUP') {
+    throw conflict(order.status === 'PLACED' ? 'Accept the order before choosing a rider.' : 'This order no longer needs a rider.');
+  }
+}
+
+defineRoute(vendorPortalRouter, {
+  method: 'get',
+  path: '/orders/:id/riders',
+  basePath,
+  tags,
+  summary: 'Riders available to deliver this order (online, idle, nearby and working in the area), nearest first',
+  description: '`canTakeCash` is false when collecting this cash order would take the rider over their cash limit; such riders cannot be chosen.',
+  auth: 'required',
+  roles,
+  params: idParams,
+  handler: async ({ params, user }) => {
+    const { order } = await ownOrder(user.id, params.id);
+    assertNeedsRider(order);
+    const [candidates, settings] = await Promise.all([findCandidates(order, { requireCashCapacity: false }), getSettings()]);
+    return {
+      radiusKm: settings.dispatchRadiusKm,
+      riders: candidates.map((c) => ({
+        riderId: c.riderId,
+        name: c.name,
+        photoUrl: c.photoUrl,
+        vehicleType: c.vehicleType,
+        vehiclePlate: c.vehiclePlate,
+        ratingAvg: Math.round(c.ratingAvg * 10) / 10,
+        distanceKm: c.distanceKm,
+        zoneName: c.zone?.name ?? null,
+        canTakeCash: c.canTakeCash,
+      })),
+    };
+  },
+});
+
+defineRoute(vendorPortalRouter, {
+  method: 'post',
+  path: '/orders/:id/assign',
+  basePath,
+  tags,
+  summary: 'Assign one of the available riders (GET /orders/{id}/riders) to deliver this order',
+  auth: 'required',
+  roles,
+  params: idParams,
+  body: z.object({ riderId: z.string().min(1).max(64) }),
+  handler: async ({ body, params, user }) => {
+    const { vendor, order } = await ownOrder(user.id, params.id);
+    assertNeedsRider(order);
+    // Stores choose among riders who are online, free, nearby and working in this area.
+    const candidate = (await findCandidates(order, { requireCashCapacity: false })).find((c) => c.riderId === body.riderId);
+    if (!candidate) throw conflict('That rider is no longer available. Refresh the list and choose another.');
+    await manualAssign(order.id, body.riderId, user.id, { by: 'shop', shopName: vendor.name });
     return (await getOrderForUser(user, params.id)).presented;
   },
 });

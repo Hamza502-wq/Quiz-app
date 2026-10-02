@@ -7,6 +7,7 @@ import { haversineKm, roadDistanceKm } from '../../lib/geo';
 import { formatMoney } from '../../lib/money';
 import { emitTo, rooms, ServerEvents } from '../../realtime/io';
 import { getSettings } from '../settings/settings.service';
+import { zoneContains } from '../pricing/pricing.service';
 import { canTakeCashOrder, getCashLimitCents, getCashOwedCents } from '../wallet/wallet.service';
 import { notify, notifyAsync } from '../notifications/notification.service';
 import { publishOrderUpdate } from '../orders/order.events';
@@ -36,6 +37,7 @@ export interface Candidate {
   userId: string;
   name: string | null;
   phone: string;
+  photoUrl: string | null;
   distanceKm: number;
   lat: number;
   lng: number;
@@ -43,15 +45,32 @@ export interface Candidate {
   cashLimitCents: number;
   canTakeCash: boolean;
   vehicleType: string;
+  vehiclePlate: string | null;
   ratingAvg: number;
+  zone: { id: string; name: string } | null;
 }
 
 /**
- * Online, approved, idle riders near the pickup point, nearest first.
- * `enforceRadius=false` lists everyone (admin manual assignment view).
+ * Riders who picked a delivery zone get orders that start or end in it. No zone (or a zone
+ * that has since been switched off) means anywhere.
+ */
+function servesOrder(
+  zone: (Parameters<typeof zoneContains>[0] & { isActive: boolean }) | null,
+  order: Pick<Order, 'pickupLat' | 'pickupLng' | 'dropoffLat' | 'dropoffLng'>,
+): boolean {
+  if (!zone || !zone.isActive) return true;
+  return (
+    zoneContains(zone, { lat: order.pickupLat, lng: order.pickupLng }) || zoneContains(zone, { lat: order.dropoffLat, lng: order.dropoffLng })
+  );
+}
+
+/**
+ * Online, approved, idle riders near the pickup point who work in the order's area, nearest
+ * first. `enforceRadius=false` lists everyone online, whatever their distance or zone (admin
+ * manual assignment view).
  */
 export async function findCandidates(
-  order: Pick<Order, 'id' | 'pickupLat' | 'pickupLng' | 'paymentMethod' | 'totalCents'>,
+  order: Pick<Order, 'id' | 'pickupLat' | 'pickupLng' | 'dropoffLat' | 'dropoffLng' | 'paymentMethod' | 'totalCents'>,
   opts: { excludeRiderIds?: string[]; enforceRadius?: boolean; requireCashCapacity?: boolean } = {},
 ): Promise<Candidate[]> {
   const settings = await getSettings();
@@ -68,14 +87,18 @@ export async function findCandidates(
       orders: { none: { status: { in: ACTIVE_STATUSES } } },
       offers: { none: { status: 'OFFERED', expiresAt: { gt: new Date() } } },
     },
-    include: { user: { select: { name: true, phone: true } }, wallet: { select: { balanceCents: true } } },
+    include: {
+      user: { select: { name: true, phone: true, avatarUrl: true } },
+      wallet: { select: { balanceCents: true } },
+      zone: { select: { id: true, name: true, isActive: true, centerLat: true, centerLng: true, radiusKm: true, polygon: true } },
+    },
   });
 
   const pickup = { lat: order.pickupLat, lng: order.pickupLng };
   const candidates: Candidate[] = [];
   for (const r of riders) {
     const distanceKm = Math.round(haversineKm({ lat: r.lat!, lng: r.lng! }, pickup) * 100) / 100;
-    if (opts.enforceRadius !== false && distanceKm > settings.dispatchRadiusKm) continue;
+    if (opts.enforceRadius !== false && (distanceKm > settings.dispatchRadiusKm || !servesOrder(r.zone, order))) continue;
     const cashOwedCents = Math.max(0, -(r.wallet?.balanceCents ?? 0));
     const cashLimitCents = r.cashLimitCents ?? settings.defaultCashLimitCents;
     const canTakeCash = order.paymentMethod !== 'CASH' || cashOwedCents + order.totalCents <= cashLimitCents;
@@ -85,6 +108,7 @@ export async function findCandidates(
       userId: r.userId,
       name: r.user.name,
       phone: r.user.phone,
+      photoUrl: r.user.avatarUrl,
       distanceKm,
       lat: r.lat!,
       lng: r.lng!,
@@ -92,7 +116,9 @@ export async function findCandidates(
       cashLimitCents,
       canTakeCash,
       vehicleType: r.vehicleType,
+      vehiclePlate: r.vehiclePlate,
       ratingAvg: r.ratingAvg,
+      zone: r.zone ? { id: r.zone.id, name: r.zone.name } : null,
     });
   }
   return candidates.sort((a, b) => a.distanceKm - b.distanceKm);
@@ -223,6 +249,13 @@ export async function acceptOffer(riderId: string, offerId: string) {
   await assertRiderCanTake(riderId, offer.order);
 
   await prisma.$transaction(async (tx) => {
+    // Same lock order as dispatch (order, then rider) so a shop or admin can't assign this
+    // rider another delivery at the same moment.
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${offer.orderId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${riderId} FOR UPDATE`;
+    if ((await tx.order.count({ where: { riderId, status: { in: ACTIVE_STATUSES } } })) > 0) {
+      throw conflict('Finish your current delivery before taking another.');
+    }
     const claimed = await tx.dispatchOffer.updateMany({
       where: { id: offerId, status: 'OFFERED' },
       data: { status: 'ACCEPTED', respondedAt: new Date() },
@@ -253,18 +286,32 @@ export async function declineOffer(riderId: string, offerId: string) {
   return { ok: true };
 }
 
-/** Admin assigns a specific rider. Any outstanding offer for the order is withdrawn. */
-export async function manualAssign(orderId: string, riderId: string, adminUserId: string) {
+/** Who assigned a rider by hand: DoorStep support (admin) or the store that owns the order. */
+export type AssignedBy = { by: 'admin' } | { by: 'shop'; shopName: string };
+
+/**
+ * Admin or the store assigns a specific rider. Any outstanding offer for the order, and any
+ * request the rider still has open for another order, is withdrawn.
+ */
+export async function manualAssign(orderId: string, riderId: string, actorUserId: string, assignedBy: AssignedBy = { by: 'admin' }) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw notFound('Order');
-  if (order.riderId) throw conflict('A rider is already assigned. Unassign them first.');
+  if (order.riderId) throw conflict(assignedBy.by === 'shop' ? 'A rider is already on this order.' : 'A rider is already assigned. Unassign them first.');
   if (!DISPATCHABLE_STATUSES.includes(order.status)) throw badRequest('This order cannot be assigned right now.');
 
   const rider = await prisma.rider.findUnique({ where: { id: riderId }, include: { user: true } });
   if (!rider || rider.status !== 'APPROVED' || rider.user.status !== 'ACTIVE') {
     throw badRequest('Rider must be approved and active.');
   }
-  await assertRiderCanTake(riderId, order);
+  const riderName = rider.user.name ?? 'This rider';
+  if (order.paymentMethod === 'CASH' && !(await canTakeCashOrder(riderId, order.totalCents))) {
+    const cash = formatMoney(order.totalCents, 'USD');
+    if (assignedBy.by === 'shop') throw conflict(`Cash limit: ${riderName} can't collect ${cash} in cash right now. Choose another rider.`);
+    const [owed, limit] = await Promise.all([getCashOwedCents(riderId), getCashLimitCents(riderId)]);
+    throw conflict(
+      `Cash limit reached: ${riderName} holds ${formatMoney(owed, 'USD')} of a ${formatMoney(limit, 'USD')} limit, so can't collect ${cash}. Raise their cash limit or choose another rider.`,
+    );
+  }
 
   const pickupDistance =
     rider.lat !== null && rider.lng !== null
@@ -272,8 +319,16 @@ export async function manualAssign(orderId: string, riderId: string, adminUserId
       : null;
 
   const withdrawn = await prisma.$transaction(async (tx) => {
-    const open = await tx.dispatchOffer.findMany({ where: { orderId, status: 'OFFERED' } });
-    await tx.dispatchOffer.updateMany({ where: { orderId, status: 'OFFERED' }, data: { status: 'CANCELLED' } });
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${riderId} FOR UPDATE`;
+    if ((await tx.order.count({ where: { riderId, status: { in: ACTIVE_STATUSES } } })) > 0) {
+      throw conflict(`${riderName} is busy with another delivery.`);
+    }
+    // Open offers for this order (other riders) and for other orders (this rider, now busy).
+    const open = await tx.dispatchOffer.findMany({ where: { status: 'OFFERED', OR: [{ orderId }, { riderId }] } });
+    if (open.length > 0) {
+      await tx.dispatchOffer.updateMany({ where: { id: { in: open.map((o) => o.id) }, status: 'OFFERED' }, data: { status: 'CANCELLED' } });
+    }
     const assigned = await tx.order.updateMany({
       where: { id: orderId, riderId: null, status: { in: DISPATCHABLE_STATUSES } },
       data: { riderId, assignedAt: new Date() },
@@ -294,19 +349,26 @@ export async function manualAssign(orderId: string, riderId: string, adminUserId
       data: {
         orderId,
         type: 'RIDER_ASSIGNED',
-        message: `Assigned to ${rider.user.name ?? 'rider'} by admin`,
-        actorId: adminUserId,
+        message: `Assigned to ${rider.user.name ?? 'rider'} by ${assignedBy.by === 'shop' ? 'the store' : 'admin'}`,
+        actorId: actorUserId,
       },
     });
     return open;
   });
 
-  for (const o of withdrawn) emitTo(rooms.rider(o.riderId), ServerEvents.dispatchOfferCancelled, { offerId: o.id, orderId });
+  for (const o of withdrawn) emitTo(rooms.rider(o.riderId), ServerEvents.dispatchOfferCancelled, { offerId: o.id, orderId: o.orderId });
+  // Orders whose request this rider had open go back to dispatch.
+  for (const otherOrderId of new Set(withdrawn.filter((o) => o.orderId !== orderId).map((o) => o.orderId))) {
+    runInBackground(startAutoDispatch(otherOrderId), 'dispatch');
+  }
   await notify({
     userId: rider.userId,
     type: 'ORDER_ASSIGNED',
     title: 'New delivery assigned',
-    body: `Order ${order.code} has been assigned to you. Head to the pickup point.`,
+    body:
+      assignedBy.by === 'shop'
+        ? `${assignedBy.shopName} assigned order ${order.code} to you. Head to the store to pick it up.`
+        : `Order ${order.code} has been assigned to you. Head to the pickup point.`,
     data: { orderId },
     fallbackToSms: true,
   });

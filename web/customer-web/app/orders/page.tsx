@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, ClipboardList, Package } from 'lucide-react';
+import { ChevronRight, ClipboardList, MessageCircle, Package } from 'lucide-react';
 import {
   EmptyState,
   ErrorState,
@@ -90,6 +90,11 @@ function Orders() {
                       {o.code} · {formatDateTime(o.timestamps.createdAt)} ·{' '}
                       {o.type === 'PARCEL' ? o.parcel?.description : `${o.items.reduce((n, i) => n + i.quantity, 0)} items`}
                     </p>
+                    {o.unreadMessages ? (
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
+                        <MessageCircle className="h-3 w-3" aria-hidden /> {o.unreadMessages} new message{o.unreadMessages === 1 ? '' : 's'}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{formatIn(o.amounts.totalCents, o.amounts.currency, o.amounts.exchangeRate)}</p>

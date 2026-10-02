@@ -3,15 +3,17 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Bike, KeyRound, MapPin, MessageCircle, Phone, RotateCcw, Star, Store, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Bike, KeyRound, MapPin, MessageCircle, RotateCcw, Star, Store, TriangleAlert } from 'lucide-react';
 import {
   Avatar,
   Badge,
   Button,
+  CallLink,
   Card,
   EmptyState,
   ErrorState,
   LoadingBlock,
+  OrderChat,
   OrderStatusBadge,
   PAYMENT_METHOD_LABEL,
   PaymentStatusBadge,
@@ -35,7 +37,6 @@ import type { CustomerOrder, PaymentInfo, ReorderResult, RiderLocationEvent, Tra
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { OrderProgress } from '@/components/OrderProgress';
 import { TrackingMap } from '@/components/TrackingMap';
-import { ChatPanel } from '@/components/ChatPanel';
 import { OnlinePaymentForm, PaymentStatusView, TipModal, usePaymentStatus } from '@/components/Payments';
 import { CancelOrderModal, DisputeModal, RateOrderModal } from '@/components/OrderDialogs';
 
@@ -251,18 +252,26 @@ function OrderView({ order, setOrder, reload }: { order: CustomerOrder; setOrder
                     ) : null}
                   </p>
                 </div>
-                {order.rider.phone && active ? (
-                  <a href={`tel:${order.rider.phone}`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-line px-4 text-sm font-semibold hover:border-brand hover:text-brand">
-                    <Phone className="h-4 w-4" aria-hidden /> Call
-                  </a>
-                ) : null}
+                {order.rider.phone && active ? <CallLink phone={order.rider.phone} label="Call rider" /> : null}
               </div>
-              <div className="mt-4">
-                <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                  <MessageCircle className="h-4 w-4 text-brand" aria-hidden /> Chat with your rider
+            </Card>
+          ) : null}
+
+          {order.status !== 'PENDING_PAYMENT' && (order.vendor || order.rider) ? (
+            <Card>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 font-semibold">
+                  <MessageCircle className="h-4 w-4 text-brand" aria-hidden />
+                  {order.vendor && order.rider ? 'Messages with the store and your rider' : order.vendor ? 'Messages with the store' : 'Messages with your rider'}
                 </p>
-                <ChatPanel orderId={order.id} canSend={active} />
+                {order.vendor && active ? <CallLink phone={order.vendor.phone} label="Call store" /> : null}
               </div>
+              <OrderChat
+                orderId={order.id}
+                canSend={active}
+                placeholder={order.vendor && order.rider ? 'Message the store and rider' : order.vendor ? 'Message the store' : 'Message your rider'}
+                emptyText={order.vendor ? 'No messages yet. Ask the store or your rider anything about this order.' : 'No messages yet. Say hello to your rider.'}
+              />
             </Card>
           ) : null}
 

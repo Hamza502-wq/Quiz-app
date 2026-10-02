@@ -13,7 +13,7 @@ import {
   cn,
   type LatLng,
 } from '@doorstep/web-shared';
-import { MAP_UNAVAILABLE_MESSAGE, useDeliverTo } from '@/lib/location';
+import { useDeliverTo } from '@/lib/location';
 import type { Address } from '@/lib/types';
 
 const QUICK_LABELS = ['Home', 'Work', 'Other'];
@@ -98,7 +98,7 @@ export function AddressFormModal({
       <form onSubmit={(e) => void submit(e)} className="space-y-4">
         <div>
           <p className="mb-1.5 text-sm font-medium">Pin your exact spot</p>
-          <MapPicker value={pin} onChange={setPin} height={280} unavailableMessage={MAP_UNAVAILABLE_MESSAGE} />
+          <MapPicker value={pin} onChange={setPin} height={280} />
         </div>
         <Field label="Directions for the rider" hint="Landmarks matter more than street names, e.g. “house 12, blue gate opposite Spar”.">
           <Textarea value={landmark} maxLength={200} rows={2} required onChange={(e) => setLandmark(e.target.value)} />

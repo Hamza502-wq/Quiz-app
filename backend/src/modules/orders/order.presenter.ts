@@ -73,8 +73,10 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
  */
 export function presentOrder(order: OrderWithRelations | OrderWithDetail, viewer: OrderViewer) {
   const orderPayment = order.payments.find((p) => p.purpose === 'ORDER');
-  const showRiderContact = viewer === 'customer' || viewer === 'admin';
-  const showCustomerContact = viewer === 'rider' || viewer === 'admin';
+  // The customer, store and rider can call each other; stores only while the order is open.
+  const storeCanCall = viewer === 'vendor' && ACTIVE_STATUSES.includes(order.status);
+  const showRiderContact = viewer === 'customer' || viewer === 'admin' || storeCanCall;
+  const showCustomerContact = viewer === 'rider' || viewer === 'admin' || storeCanCall;
 
   return {
     id: order.id,

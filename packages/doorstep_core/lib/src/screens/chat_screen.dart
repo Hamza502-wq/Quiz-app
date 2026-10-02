@@ -13,12 +13,13 @@ import '../utils/launch.dart';
 import '../widgets/feedback.dart';
 import '../widgets/skeleton.dart';
 
-/// Order chat between the customer and the rider.
+/// An order's chat, shared by the customer, the store and the rider.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.orderId, required this.title, this.phone});
+  const ChatScreen({super.key, required this.orderId, required this.title, this.phone, this.quickReplies = const ["I'm outside", 'On my way', 'Please call me', 'Thank you!']});
   final String orderId;
   final String title;
   final String? phone;
+  final List<String> quickReplies;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -133,7 +134,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const quickReplies = ["I'm outside", 'On my way', 'Please call me', 'Thank you!'];
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -168,8 +168,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                     border: m.mine ? null : Border.all(color: DsColors.line),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    crossAxisAlignment: m.mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                     children: [
+                                      if (!m.mine && m.senderLabel != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 2),
+                                          child: Text(m.senderLabel!, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: DsColors.orange)),
+                                        ),
                                       Text(m.body, style: TextStyle(color: m.mine ? Colors.white : DsColors.black)),
                                       const SizedBox(height: 2),
                                       Text(formatTime(m.createdAt), style: TextStyle(fontSize: 10, color: m.mine ? Colors.white70 : DsColors.muted)),
@@ -186,7 +191,7 @@ class _ChatScreenState extends State<ChatScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                for (final q in quickReplies)
+                for (final q in widget.quickReplies)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ActionChip(label: Text(q), onPressed: () => _send(q)),
@@ -207,7 +212,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       maxLines: 4,
                       maxLength: 1000,
                       textCapitalization: TextCapitalization.sentences,
+                      // Enter (or the keyboard's send key) sends; the keyboard stays open for the next message.
+                      textInputAction: TextInputAction.send,
                       decoration: const InputDecoration(hintText: 'Type a message', counterText: ''),
+                      onEditingComplete: () {},
                       onSubmitted: (_) => _send(),
                     ),
                   ),

@@ -195,6 +195,19 @@ class _OrderListState extends State<_OrderList> {
                                     children: [
                                       Text(o.title, style: const TextStyle(fontWeight: FontWeight.w700)),
                                       Text('${o.code} · ${formatDateTime(o.placedAt ?? o.createdAt)}', style: const TextStyle(color: DsColors.muted, fontSize: 12)),
+                                      if (o.unreadMessages > 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.chat_bubble_rounded, size: 14, color: DsColors.orange),
+                                              const SizedBox(width: 4),
+                                              Text('${o.unreadMessages} new message${o.unreadMessages == 1 ? '' : 's'}',
+                                                  style: const TextStyle(color: DsColors.orange, fontWeight: FontWeight.w700, fontSize: 12)),
+                                            ],
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),

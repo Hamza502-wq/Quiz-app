@@ -68,8 +68,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final live = context.watch<RiderController>().activeOrder;
+    final controller = context.watch<RiderController>();
+    final live = controller.activeOrder;
     final order = live?.id == widget.orderId ? live : _loaded;
+    final unread = live?.id == widget.orderId ? (controller.dashboard?.unreadMessages ?? 0) : 0;
     final lowData = context.watch<AppSettings>().lowDataMode;
     final tracker = context.watch<LocationTracker>();
 
@@ -170,21 +172,13 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                                 const SizedBox(width: 8),
                                 if (contactPhone != null)
                                   IconButton.filledTonal(onPressed: () => callPhone(contactPhone), icon: const Icon(Icons.call_rounded), tooltip: 'Call'),
-                                if (!atPickupStage) ...[
-                                  const SizedBox(width: 4),
-                                  IconButton.filledTonal(
-                                    onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                                      builder: (_) => ChatScreen(orderId: order.id, title: order.customerName ?? 'Customer', phone: contactPhone),
-                                    )),
-                                    icon: const Icon(Icons.chat_bubble_outline_rounded),
-                                    tooltip: 'Chat with customer',
-                                  ),
-                                ],
                               ],
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _ContactsCard(order: order, unread: unread, onChatClosed: controller.refresh),
                       const SizedBox(height: 12),
                       SectionCard(
                         title: order.isParcel ? 'Parcel' : 'Order items',
@@ -243,6 +237,110 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Everyone on the order: call the store, the customer (and a parcel's sender or recipient),
+/// and message them in the order chat at any stage.
+class _ContactsCard extends StatelessWidget {
+  const _ContactsCard({required this.order, required this.unread, required this.onChatClosed});
+  final Order order;
+  final int unread;
+  final Future<void> Function() onChatClosed;
+
+  @override
+  Widget build(BuildContext context) {
+    final customerPhone = order.customerPhone;
+    final senderPhone = order.isParcel ? order.pickup.contactPhone : null;
+    final recipientPhone = order.isParcel ? order.dropoff.contactPhone : null;
+    final chatWith = order.vendorName != null ? 'the customer and ${order.vendorName}' : 'the customer';
+    return SectionCard(
+      title: 'Contacts',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (order.vendorName != null)
+            _ContactRow(
+              avatar: UserAvatar(url: order.vendorLogoUrl, name: order.vendorName!, size: 36, square: true),
+              title: order.vendorName!,
+              subtitle: 'Store',
+              phone: order.vendorPhone,
+            ),
+          _ContactRow(
+            avatar: UserAvatar(url: order.customerPhotoUrl, name: order.customerName ?? 'Customer', size: 36),
+            title: order.customerName ?? 'Customer',
+            subtitle: 'Customer',
+            phone: customerPhone,
+          ),
+          if (senderPhone != null && senderPhone != customerPhone)
+            _ContactRow(
+              avatar: const CircleAvatar(radius: 18, child: Icon(Icons.outbox_rounded, size: 18)),
+              title: order.pickup.contactName ?? 'Sender',
+              subtitle: 'Parcel sender',
+              phone: senderPhone,
+            ),
+          if (recipientPhone != null && recipientPhone != customerPhone)
+            _ContactRow(
+              avatar: const CircleAvatar(radius: 18, child: Icon(Icons.move_to_inbox_rounded, size: 18)),
+              title: order.dropoff.contactName ?? 'Recipient',
+              subtitle: 'Parcel recipient',
+              phone: recipientPhone,
+            ),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => ChatScreen(
+                  orderId: order.id,
+                  title: 'Messages · ${order.code}',
+                  phone: customerPhone,
+                  quickReplies: const ['On my way to the store', 'I have picked up your order', "I'm outside", 'Please call me'],
+                ),
+              ));
+              // Opening the chat marks the messages read.
+              await onChatClosed();
+            },
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text('$unread'),
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            label: Text(unread > 0 ? '$unread new message${unread == 1 ? '' : 's'} · reply' : 'Message $chatWith'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({required this.avatar, required this.title, required this.subtitle, this.phone});
+  final Widget avatar;
+  final String title;
+  final String subtitle;
+  final String? phone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          avatar,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+                Text(subtitle, style: const TextStyle(color: DsColors.muted, fontSize: 12)),
+              ],
+            ),
+          ),
+          if (phone != null) IconButton.filledTonal(onPressed: () => callPhone(phone!), icon: const Icon(Icons.call_rounded), tooltip: 'Call $title'),
+        ],
+      ),
     );
   }
 }

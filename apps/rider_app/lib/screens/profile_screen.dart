@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../state/rider_controller.dart';
 import 'payouts_screen.dart';
+import 'zone_picker.dart';
 
 class RiderProfileScreen extends StatelessWidget {
   const RiderProfileScreen({super.key});
@@ -22,7 +23,7 @@ class RiderProfileScreen extends StatelessWidget {
         children: [
           SectionCard(
             child: ProfilePhotoHeader(
-              subtitle: r == null ? null : '★ ${r.ratingAvg.toStringAsFixed(1)} · ${r.ratingCount} ratings${r.zoneName != null ? ' · ${r.zoneName}' : ''}',
+              subtitle: r == null ? null : '★ ${r.ratingAvg.toStringAsFixed(1)} · ${r.ratingCount} ratings',
             ),
           ),
           const SizedBox(height: 12),
@@ -40,6 +41,28 @@ class RiderProfileScreen extends StatelessWidget {
                   ),
                   if (r.vehiclePlate != null) PlateChip(plate: r.vehiclePlate!),
                 ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          if (r != null)
+            SectionCard(
+              title: 'Delivery zone',
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.map_outlined, color: DsColors.orange),
+                title: Text(r.zoneName ?? 'Any zone', style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(r.zoneName == null ? 'You get deliveries anywhere near you' : 'You get orders that start or end in ${r.zoneName}'),
+                trailing: const Text('Change', style: TextStyle(color: DsColors.orange, fontWeight: FontWeight.w700)),
+                onTap: () async {
+                  final choice = await pickDeliveryZone(context, load: controller.zones, currentId: r.zoneId);
+                  if (choice == null || choice.id == r.zoneId || !context.mounted) return;
+                  await runWithFeedback(
+                    context,
+                    () => controller.setZone(choice.id),
+                    success: choice.id == null ? 'You now take deliveries in any zone' : 'You now deliver in ${choice.name}',
+                  );
+                },
               ),
             ),
           const SizedBox(height: 12),

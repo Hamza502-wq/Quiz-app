@@ -756,6 +756,15 @@ function createOrder(
 }
 
 const RIDER_REPLIES = ['Thanks, noted!', 'On my way, see you soon.', 'I am about 5 minutes away.', 'I am at the gate now.'];
+const STORE_REPLIES = ['Thanks! We have your note.', 'No problem, we are on it.'];
+
+/** Who wrote a demo chat message: the signed-in customer, the order's store or its rider. */
+function chatSender(o: OrderRecord, senderId: string, userName: string | null): NonNullable<ChatMessage['sender']> {
+  if (senderId === o.userId) return { role: 'customer', name: userName ?? 'You' };
+  const rider = DEMO_RIDERS.find((r) => r.id === senderId);
+  if (rider) return { role: 'rider', name: rider.name };
+  return { role: 'store', name: (o.vendorId ? vendorById(o.vendorId)?.name : undefined) ?? 'Store' };
+}
 
 type Handler = (ctx: Ctx, params: string[]) => unknown;
 const routes: Array<[method: string, pattern: RegExp, handler: Handler]> = [
@@ -983,27 +992,48 @@ const routes: Array<[method: string, pattern: RegExp, handler: Handler]> = [
     const user = currentUser(ctx);
     return ctx.db.messages
       .filter((m) => m.orderId === o.id && Date.parse(m.createdAt) <= ctx.now)
-      .map((m): ChatMessage => ({ id: m.id, orderId: m.orderId, body: m.body, createdAt: m.createdAt, readAt: null, mine: m.senderId === user.id, senderId: m.senderId }));
+      .map((m): ChatMessage => ({
+        id: m.id,
+        orderId: m.orderId,
+        body: m.body,
+        createdAt: m.createdAt,
+        readAt: null,
+        mine: m.senderId === user.id,
+        senderId: m.senderId,
+        sender: chatSender(o, m.senderId, user.name),
+      }));
   }],
   ['POST', /^\/orders\/([^/]+)\/messages$/, (ctx, [id]) => {
     const o = ownOrder(ctx, id);
     const user = currentUser(ctx);
-    if (!o.riderId) throw conflict('Chat opens once a rider is assigned.');
+    if (o.status === 'PENDING_PAYMENT') throw conflict('Chat opens once the order is placed.');
+    if (!o.riderId && !o.vendorId) throw conflict('Chat opens once a rider is assigned.');
     if (TERMINAL.includes(o.status)) throw conflict('This order is closed.');
     const body = text(ctx.body.body, 'body', 1000)!;
     const iso = new Date(ctx.now).toISOString();
     const mine: DemoMessage = { id: nextId(ctx.db, 'msg'), orderId: o.id, senderId: user.id, body, createdAt: iso };
     ctx.db.messages.push(mine);
-    // The demo rider answers a few seconds later.
-    const replies = ctx.db.messages.filter((m) => m.orderId === o.id && m.senderId === o.riderId).length;
+    // The demo rider (or the store, before a rider is on the way) answers a few seconds later.
+    const replier = o.riderId ?? `store-${o.vendorId}`;
+    const replies = ctx.db.messages.filter((m) => m.orderId === o.id && m.senderId === replier).length;
+    const lines = o.riderId ? RIDER_REPLIES : STORE_REPLIES;
     ctx.db.messages.push({
       id: nextId(ctx.db, 'msg'),
       orderId: o.id,
-      senderId: o.riderId,
-      body: RIDER_REPLIES[replies % RIDER_REPLIES.length],
+      senderId: replier,
+      body: lines[replies % lines.length],
       createdAt: new Date(ctx.now + RIDER_REPLY_MS).toISOString(),
     });
-    return { id: mine.id, orderId: o.id, body, createdAt: iso, readAt: null, mine: true, senderId: user.id } satisfies ChatMessage;
+    return {
+      id: mine.id,
+      orderId: o.id,
+      body,
+      createdAt: iso,
+      readAt: null,
+      mine: true,
+      senderId: user.id,
+      sender: chatSender(o, user.id, user.name),
+    } satisfies ChatMessage;
   }],
   ['POST', /^\/orders\/([^/]+)\/cancel$/, (ctx, [id]) => {
     const o = ownOrder(ctx, id);

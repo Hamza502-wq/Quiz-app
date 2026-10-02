@@ -15,6 +15,7 @@ import {
   InlineError,
   LoadingBlock,
   Modal,
+  OrderChat,
   OrderStatusBadge,
   PAYMENT_METHOD_LABEL,
   PaymentStatusBadge,
@@ -176,6 +177,14 @@ function OrderDetailView() {
               ))}
             </ol>
           </Card>
+
+          {order.status !== 'PENDING_PAYMENT' ? (
+            <Card>
+              <h2 className="mb-1 font-bold">Messages</h2>
+              <p className="mb-3 text-xs text-muted">The order chat between the customer, the shop and the rider (read only).</p>
+              <OrderChat orderId={order.id} canSend={false} emptyText="No messages on this order." closedText="Admins can read this chat to help with problems." />
+            </Card>
+          ) : null}
 
           <Card>
             <h2 className="mb-3 font-bold">Dispatch offers</h2>

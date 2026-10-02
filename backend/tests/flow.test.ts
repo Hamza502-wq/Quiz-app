@@ -345,7 +345,9 @@ describe('cash order: order → accept → auto-dispatch → deliver → wallet'
     expect(list.status).toBe(200);
     const o = list.body.items.find((x: { id: string }) => x.id === orderId);
     expect(o.deliveryPin).toBeUndefined();
-    expect(o.customer.phone).toBeUndefined();
+    // Stores can call the customer while the order is open.
+    expect(o.customer.phone).toBe(PHONES.customer);
+    expect(o.unreadMessages).toBe(0);
     expect(o.amounts.commissionCents).toBeGreaterThan(0);
 
     // Rider goes online near the store so auto-dispatch can find them.
@@ -389,14 +391,66 @@ describe('cash order: order → accept → auto-dispatch → deliver → wallet'
     const forRider = await api().get(`/api/v1/orders/${orderId}`).set(auth(rider));
     expect(forRider.body.customer.photoUrl).toBe('https://example.com/faces/tatenda.webp');
 
+    // One chat per order for the customer, the store and the rider.
     const msg = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(customer)).send({ body: 'Blue gate please!' });
     expect(msg.status).toBe(201);
+    expect(msg.body).toMatchObject({ mine: true, sender: { role: 'customer', name: 'Tatenda' } });
+    const storeOrders = async () =>
+      (await api().get('/api/v1/vendor/orders').query({ status: 'active' }).set(auth(vendor))).body.items.find((x: { id: string }) => x.id === orderId);
+    expect((await storeOrders()).unreadMessages).toBe(1);
+    expect((await storeOrders()).rider.phone).toBe(PHONES.rider);
+
+    // The rider sees there is an unread message, can read it and reply before picking up.
+    const unread = await api().get('/api/v1/rider/me').set(auth(rider));
+    expect(unread.body.activeOrder.status).not.toBe('PICKED_UP');
+    expect(unread.body.unreadMessages).toBe(1);
     const msgs = await api().get(`/api/v1/orders/${orderId}/messages`).set(auth(rider));
-    expect(msgs.body[0]).toMatchObject({ body: 'Blue gate please!', mine: false });
+    expect(msgs.body[0]).toMatchObject({ body: 'Blue gate please!', mine: false, sender: { role: 'customer', name: 'Tatenda' } });
+    const read = await api().get('/api/v1/rider/me').set(auth(rider));
+    expect(read.body.unreadMessages).toBe(0);
+    const reply = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(rider)).send({ body: 'Got it, on my way to the store' });
+    expect(reply.status).toBe(201);
+    // Reading the chat as the rider doesn't mark it read for the store.
+    expect((await storeOrders()).unreadMessages).toBe(2);
+    const forStore = await api().get(`/api/v1/orders/${orderId}/messages`).set(auth(vendor));
+    expect(forStore.status).toBe(200);
+    expect(forStore.body.map((m: { sender: { role: string; name: string } }) => m.sender)).toEqual([
+      { role: 'customer', name: 'Tatenda' },
+      { role: 'rider', name: 'Tawanda' },
+    ]);
+    expect((await storeOrders()).unreadMessages).toBe(0);
+    const fromStore = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(vendor)).send({ body: 'Packing it now' });
+    expect(fromStore.status).toBe(201);
+    expect((await api().get('/api/v1/rider/me').set(auth(rider))).body.unreadMessages).toBe(1);
+    const forCustomerChat = await api().get(`/api/v1/orders/${orderId}/messages`).set(auth(customer));
+    expect(forCustomerChat.body.map((m: { body: string; mine: boolean; sender: { role: string } }) => [m.body, m.mine, m.sender.role])).toEqual([
+      ['Blue gate please!', true, 'customer'],
+      ['Got it, on my way to the store', false, 'rider'],
+      ['Packing it now', false, 'store'],
+    ]);
+    // The customer's order list shows the store's unread message.
+    const customerList = await api().get('/api/v1/orders').query({ active: 'true' }).set(auth(customer));
+    expect(customerList.body.items.find((x: { id: string }) => x.id === orderId).unreadMessages).toBe(0);
+    const another = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(vendor)).send({ body: 'Leaving the store soon' });
+    expect(another.status).toBe(201);
+    const badged = await api().get('/api/v1/orders').query({ active: 'true' }).set(auth(customer));
+    expect(badged.body.items.find((x: { id: string }) => x.id === orderId).unreadMessages).toBe(1);
+    const toCustomer = await waitFor(() =>
+      prisma.notification.findFirst({ where: { userId: customer.userId, type: 'CHAT_MESSAGE', body: 'Packing it now' } }),
+    );
+    expect(toCustomer.title).toMatch(/^Message from Sadza Republic · DS-/);
+    const toRider = await waitFor(() =>
+      prisma.notification.findFirst({ where: { userId: world.riderUser.id, type: 'CHAT_MESSAGE', body: 'Blue gate please!' } }),
+    );
+    expect(toRider.title).toMatch(/^Message from the customer · DS-/);
 
     const outsider = await login('+263776666666', 'CUSTOMER');
     const denied = await api().get(`/api/v1/orders/${orderId}`).set(auth(outsider));
     expect(denied.status).toBe(404);
+    const deniedChat = await api().get(`/api/v1/orders/${orderId}/messages`).set(auth(outsider));
+    expect(deniedChat.status).toBe(404);
+    const deniedSend = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(outsider)).send({ body: 'hi' });
+    expect(deniedSend.status).toBe(404);
   });
 
   it('moves through pickup and delivery with PIN proof', async () => {
@@ -416,6 +470,12 @@ describe('cash order: order → accept → auto-dispatch → deliver → wallet'
     expect(done.status).toBe(200);
     expect(done.body.status).toBe('DELIVERED');
     expect(done.body.paymentStatus).toBe('PAID');
+    // Once it's delivered the store no longer sees phone numbers, and the chat is closed.
+    const forStore = await api().get(`/api/v1/orders/${orderId}`).set(auth(vendor));
+    expect(forStore.body.customer.phone).toBeUndefined();
+    expect(forStore.body.rider.phone).toBeUndefined();
+    const closed = await api().post(`/api/v1/orders/${orderId}/messages`).set(auth(customer)).send({ body: 'Thanks!' });
+    expect(closed.status).toBe(409);
   });
 
   it('credits fee + tip and records cash owed', async () => {
@@ -552,6 +612,108 @@ describe('dispatch without the scheduled job', () => {
   });
 });
 
+describe('stores choose riders and riders choose zones', () => {
+  it('lets the store assign an available rider who works in the area', async () => {
+    await updateSettings({ autoDispatchEnabled: false }, world.admin.id);
+    await prisma.rider.update({
+      where: { id: world.rider.id },
+      data: { isOnline: true, lat: -17.831, lng: 31.0457, locationUpdatedAt: new Date(), zoneId: null },
+    });
+    const place = async () => {
+      const res = await api()
+        .post('/api/v1/orders')
+        .set(auth(customer))
+        .send({ vendorId: world.vendor.id, items: [{ productId: world.sadza.id, quantity: 1 }], addressId, tipCents: 0, paymentMethod: 'CASH' });
+      expect(res.status).toBe(201);
+      return res.body.order.id as string;
+    };
+    const first = await place();
+    const second = await place();
+    const tooEarly = await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(vendor));
+    expect(tooEarly.status).toBe(409);
+    expect(tooEarly.body.error.message).toMatch(/Accept the order/);
+    for (const id of [first, second]) {
+      await api().post(`/api/v1/vendor/orders/${id}/accept`).set(auth(vendor)).send({ prepMinutes: 10 }).expect(200);
+    }
+    expect(await prisma.dispatchOffer.count({ where: { orderId: { in: [first, second] } } })).toBe(0);
+    // Before any rider, the customer and the store can already message each other.
+    const early = await api().post(`/api/v1/orders/${first}/messages`).set(auth(customer)).send({ body: 'No onions please' });
+    expect(early.status).toBe(201);
+    const storeReply = await api().post(`/api/v1/orders/${first}/messages`).set(auth(vendor)).send({ body: 'Noted!' });
+    expect(storeReply.status).toBe(201);
+
+    const list = await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(vendor));
+    expect(list.status).toBe(200);
+    expect(list.body.radiusKm).toBeGreaterThan(0);
+    expect(list.body.riders).toHaveLength(1);
+    expect(list.body.riders[0]).toMatchObject({ riderId: world.rider.id, name: 'Tawanda', vehiclePlate: 'AEF 1234', canTakeCash: true, zoneName: null });
+    expect(list.body.riders[0]).not.toHaveProperty('phone');
+    const notStores = await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(customer));
+    expect(notStores.status).toBe(403);
+
+    // The rider picks a zone: only active zones, and only listed for orders in that zone.
+    const bulawayo = await prisma.zone.create({
+      data: { name: 'Bulawayo', city: 'Bulawayo', centerLat: -20.1325, centerLng: 28.6265, radiusKm: 18 },
+    });
+    const zones = await api().get('/api/v1/rider/zones').set(auth(rider));
+    expect(zones.status).toBe(200);
+    expect(zones.body.map((z: { name: string }) => z.name)).toEqual(['Bulawayo', 'Harare Metro']);
+    const badZone = await api().patch('/api/v1/rider/me').set(auth(rider)).send({ zoneId: 'no-such-zone' });
+    expect(badZone.status).toBe(400);
+    const moved = await api().patch('/api/v1/rider/me').set(auth(rider)).send({ zoneId: bulawayo.id });
+    expect(moved.status).toBe(200);
+    expect(moved.body.rider.zone).toEqual({ id: bulawayo.id, name: 'Bulawayo' });
+    expect((await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(vendor))).body.riders).toHaveLength(0);
+    const outOfZone = await api().post(`/api/v1/vendor/orders/${first}/assign`).set(auth(vendor)).send({ riderId: world.rider.id });
+    expect(outOfZone.status).toBe(409);
+    expect(outOfZone.body.error.message).toMatch(/no longer available/);
+    // Admins still see every online rider.
+    const forAdmin = await api().get(`/api/v1/admin/orders/${first}/candidates`).set(auth(admin));
+    expect(forAdmin.body.map((c: { riderId: string }) => c.riderId)).toContain(world.rider.id);
+    // A zone that is switched off no longer limits the rider, and isn't offered to riders.
+    await prisma.zone.update({ where: { id: bulawayo.id }, data: { isActive: false } });
+    expect((await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(vendor))).body.riders).toHaveLength(1);
+    expect((await api().get('/api/v1/rider/zones').set(auth(rider))).body.map((z: { name: string }) => z.name)).toEqual(['Harare Metro']);
+    const inactive = await api().patch('/api/v1/rider/me').set(auth(rider)).send({ zoneId: bulawayo.id });
+    expect(inactive.status).toBe(400);
+    const harare = await api().patch('/api/v1/rider/me').set(auth(rider)).send({ zoneId: world.zone.id });
+    expect(harare.body.rider.zone).toEqual({ id: world.zone.id, name: 'Harare Metro' });
+    expect((await api().get(`/api/v1/vendor/orders/${first}/riders`).set(auth(vendor))).body.riders).toHaveLength(1);
+
+    // The store assigns the rider, who is told which store sent them.
+    const assigned = await api().post(`/api/v1/vendor/orders/${first}/assign`).set(auth(vendor)).send({ riderId: world.rider.id });
+    expect(assigned.status).toBe(200);
+    expect(assigned.body.rider.id).toBe(world.rider.id);
+    const event = await prisma.orderEvent.findFirst({ where: { orderId: first, type: 'RIDER_ASSIGNED' }, orderBy: { createdAt: 'desc' } });
+    expect(event?.message).toBe('Assigned to Tawanda by the store');
+    const told = await prisma.notification.findFirst({ where: { userId: world.riderUser.id, type: 'ORDER_ASSIGNED' }, orderBy: { createdAt: 'desc' } });
+    expect(told?.body).toMatch(/^Sadza Republic assigned order/);
+    const again = await api().post(`/api/v1/vendor/orders/${first}/assign`).set(auth(vendor)).send({ riderId: world.rider.id });
+    expect(again.status).toBe(409);
+
+    // Busy riders aren't listed or assignable for the store's other order.
+    expect((await api().get(`/api/v1/vendor/orders/${second}/riders`).set(auth(vendor))).body.riders).toHaveLength(0);
+    const busy = await api().post(`/api/v1/vendor/orders/${second}/assign`).set(auth(vendor)).send({ riderId: world.rider.id });
+    expect(busy.status).toBe(409);
+
+    // A hand assignment withdraws the rider's open request for another order.
+    await api().post(`/api/v1/rider/orders/${first}/decline`).set(auth(rider)).send({ reason: 'Wrong side of town' }).expect(200);
+    const { offerToNextRider } = await import('../src/modules/dispatch/dispatch.service');
+    const offerId = await offerToNextRider(second);
+    expect(offerId).toBeTruthy();
+    await api().post(`/api/v1/admin/orders/${first}/assign`).set(auth(admin)).send({ riderId: world.rider.id }).expect(200);
+    expect((await prisma.dispatchOffer.findUniqueOrThrow({ where: { id: offerId! } })).status).toBe('CANCELLED');
+    const adminEvent = await prisma.orderEvent.findFirst({ where: { orderId: first, type: 'RIDER_ASSIGNED' }, orderBy: { createdAt: 'desc' } });
+    expect(adminEvent?.message).toBe('Assigned to Tawanda by admin');
+
+    for (const id of [first, second]) {
+      await api().post(`/api/v1/admin/orders/${id}/cancel`).set(auth(admin)).send({ reason: 'Test cleanup' }).expect(200);
+    }
+    await prisma.rider.update({ where: { id: world.rider.id }, data: { zoneId: null } });
+    await updateSettings({ autoDispatchEnabled: true }, world.admin.id);
+  });
+});
+
 describe('online payment (mock Paynow) and parcels', () => {
   it('confirms an EcoCash payment and places the order', async () => {
     const res = await api()
@@ -602,6 +764,10 @@ describe('online payment (mock Paynow) and parcels', () => {
     expect(res.status).toBe(201);
     expect(res.body.order).toMatchObject({ type: 'PARCEL', status: 'PLACED' });
     expect(res.body.order.dropoff.recipientPhone).toBe('+263774123456');
+    // A parcel has no store: its chat opens when a rider takes it.
+    const early = await api().post(`/api/v1/orders/${res.body.order.id}/messages`).set(auth(customer)).send({ body: 'Hello?' });
+    expect(early.status).toBe(409);
+    expect(early.body.error.message).toMatch(/once a rider is assigned/);
   });
 
   it('rejects addresses outside service zones', async () => {

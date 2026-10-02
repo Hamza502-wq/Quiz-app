@@ -24,7 +24,7 @@ import {
   type LatLng,
   type PaymentMethod,
 } from '@doorstep/web-shared';
-import { MAP_UNAVAILABLE_MESSAGE, useDeliverTo } from '@/lib/location';
+import { useDeliverTo } from '@/lib/location';
 import { addressSummary, etaLabel, looksLikePhone } from '@/lib/format';
 import { PAYMENT_OPTIONS } from '@/lib/payment';
 import { orderHref } from '@/lib/routes';
@@ -184,7 +184,7 @@ function SendParcel() {
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-sm text-white">1</span> Pickup
             </h2>
-            <MapPicker value={pickupPin} onChange={setPickupPin} height={260} unavailableMessage={MAP_UNAVAILABLE_MESSAGE} />
+            <MapPicker value={pickupPin} onChange={setPickupPin} height={260} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Pickup address">
                 <Input value={pickupAddress} maxLength={160} onChange={(e) => setPickupAddress(e.target.value)} placeholder="e.g. 14 Fife Avenue, Avenues" />

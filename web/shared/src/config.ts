@@ -32,4 +32,5 @@ export const appLinks = {
   customer: process.env.NEXT_PUBLIC_CUSTOMER_URL || '/',
   vendor: process.env.NEXT_PUBLIC_VENDOR_URL || '/vendor/',
   rider: riderUrl === 'none' ? null : riderUrl,
+  admin: process.env.NEXT_PUBLIC_ADMIN_URL || '/admin/',
 };

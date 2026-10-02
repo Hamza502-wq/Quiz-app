@@ -205,6 +205,25 @@ export interface Order {
     cancelledAt: string | null;
   };
   events?: OrderEvent[];
+  /** Order lists (customer and store): chat messages from others that the viewer hasn't read yet. */
+  unreadMessages?: number;
+}
+
+/** Who wrote a message in an order's chat (shared by the customer, the store and the rider). */
+export interface ChatSender {
+  role: 'customer' | 'store' | 'rider';
+  name: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  orderId: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+  mine: boolean;
+  senderId: string;
+  sender?: ChatSender;
 }
 
 export interface Payout {

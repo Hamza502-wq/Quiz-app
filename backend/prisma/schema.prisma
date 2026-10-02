@@ -198,6 +198,7 @@ model User {
   ratingsGiven   Rating[]
   disputesRaised Dispute[]      @relation("DisputeRaisedBy")
   chatMessages   ChatMessage[]
+  chatReads      ChatRead[]
 
   @@map("users")
 }
@@ -643,6 +644,7 @@ model Order {
   ratings            Rating[]
   offers             DispatchOffer[]
   messages           ChatMessage[]
+  chatReads          ChatRead[]
   dispute            Dispute?
   cashCollection     CashCollection?
   refunds            Refund[]
@@ -716,6 +718,19 @@ model ChatMessage {
 
   @@index([orderId, createdAt])
   @@map("chat_messages")
+}
+
+/// When each person last opened an order's chat (the customer, store and rider share one thread).
+model ChatRead {
+  orderId String   @map("order_id")
+  userId  String   @map("user_id")
+  readAt  DateTime @map("read_at")
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orderId, userId])
+  @@index([userId])
+  @@map("chat_reads")
 }
 
 // ─────────────────────────────── Payments ───────────────────────────────

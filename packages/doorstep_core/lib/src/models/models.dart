@@ -514,6 +514,7 @@ class Order {
     required this.paymentStatus,
     required this.createdAt,
     required this.canRate,
+    this.unreadMessages = 0,
     this.vendorId,
     this.vendorName,
     this.vendorPhone,
@@ -583,6 +584,7 @@ class Order {
       hasDispute: dispute != null,
       disputeStatus: dispute?['status'] as String?,
       proofType: (j['proof'] as Json?)?['type'] as String?,
+      unreadMessages: _int(j['unreadMessages']),
     );
   }
 
@@ -623,6 +625,9 @@ class Order {
   final bool hasDispute;
   final String? disputeStatus;
   final String? proofType;
+
+  /// Order lists: chat messages from others on this order that haven't been read.
+  final int unreadMessages;
 
   bool get isParcel => type == 'PARCEL';
   int get itemCount => items.fold(0, (s, i) => s + i.quantity);
@@ -696,20 +701,54 @@ class AppNotification {
   final DateTime createdAt;
 }
 
+/// A message in an order's chat, shared by the customer, the store and the rider.
 class ChatMessage {
-  ChatMessage({required this.id, required this.orderId, required this.body, required this.mine, required this.createdAt});
-  factory ChatMessage.fromJson(Json j) => ChatMessage(
-        id: j['id'] as String,
-        orderId: j['orderId'] as String,
-        body: j['body'] as String,
-        mine: j['mine'] as bool? ?? false,
-        createdAt: _date(j['createdAt'])!,
-      );
+  ChatMessage({
+    required this.id,
+    required this.orderId,
+    required this.body,
+    required this.mine,
+    required this.createdAt,
+    this.senderRole,
+    this.senderName,
+  });
+  factory ChatMessage.fromJson(Json j) {
+    final sender = j['sender'] as Json?;
+    return ChatMessage(
+      id: j['id'] as String,
+      orderId: j['orderId'] as String,
+      body: j['body'] as String,
+      mine: j['mine'] as bool? ?? false,
+      createdAt: _date(j['createdAt'])!,
+      senderRole: sender?['role'] as String?,
+      senderName: sender?['name'] as String?,
+    );
+  }
   final String id;
   final String orderId;
   final String body;
   final bool mine;
   final DateTime createdAt;
+
+  /// "customer", "store" or "rider".
+  final String? senderRole;
+  final String? senderName;
+
+  /// e.g. "Sadza Republic · Store", shown above other people's messages.
+  String? get senderLabel {
+    if (senderName == null) return null;
+    final role = switch (senderRole) { 'store' => 'Store', 'rider' => 'Rider', 'customer' => 'Customer', _ => null };
+    return role == null ? senderName : '$senderName · $role';
+  }
+}
+
+/// A delivery zone a rider can choose to work in.
+class DeliveryZone {
+  DeliveryZone({required this.id, required this.name, required this.city});
+  factory DeliveryZone.fromJson(Json j) => DeliveryZone(id: j['id'] as String, name: j['name'] as String, city: j['city'] as String? ?? '');
+  final String id;
+  final String name;
+  final String city;
 }
 
 class Paged<T> {
@@ -871,6 +910,7 @@ class RiderProfile {
     this.vehicleMake,
     this.vehicleModel,
     this.vehicleColor,
+    this.zoneId,
     this.zoneName,
     this.payoutMethod,
     this.payoutAccount,
@@ -893,6 +933,7 @@ class RiderProfile {
         vehicleColor: j['vehicleColor'] as String?,
         ratingAvg: _double(j['ratingAvg']),
         ratingCount: _int(j['ratingCount']),
+        zoneId: (j['zone'] as Json?)?['id'] as String?,
         zoneName: (j['zone'] as Json?)?['name'] as String?,
         payoutMethod: j['payoutMethod'] as String?,
         payoutAccount: j['payoutAccount'] as String?,
@@ -916,6 +957,9 @@ class RiderProfile {
   final String? vehicleColor;
   final double ratingAvg;
   final int ratingCount;
+
+  /// The delivery zone the rider works in; null means any zone.
+  final String? zoneId;
   final String? zoneName;
   final String? payoutMethod;
   final String? payoutAccount;
@@ -926,7 +970,16 @@ class RiderProfile {
 }
 
 class RiderDashboard {
-  RiderDashboard({required this.registered, this.rider, this.wallet, this.activeOrder, this.pendingOffer, this.today, this.week});
+  RiderDashboard({
+    required this.registered,
+    this.rider,
+    this.wallet,
+    this.activeOrder,
+    this.pendingOffer,
+    this.today,
+    this.week,
+    this.unreadMessages = 0,
+  });
   factory RiderDashboard.fromJson(Json j) {
     if (j['registered'] != true) return RiderDashboard(registered: false);
     final stats = j['stats'] as Json;
@@ -938,6 +991,7 @@ class RiderDashboard {
       pendingOffer: j['pendingOffer'] == null ? null : DispatchOffer.fromJson(j['pendingOffer'] as Json),
       today: RiderStats.fromJson(stats['today'] as Json),
       week: RiderStats.fromJson(stats['week'] as Json),
+      unreadMessages: _int(j['unreadMessages']),
     );
   }
   final bool registered;
@@ -947,4 +1001,7 @@ class RiderDashboard {
   final DispatchOffer? pendingOffer;
   final RiderStats? today;
   final RiderStats? week;
+
+  /// Messages on the active order from the customer or store that the rider hasn't read.
+  final int unreadMessages;
 }

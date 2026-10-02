@@ -15,3 +15,4 @@ export * from './AppShell';
 export * from './pwa';
 export * from './ChangePassword';
 export * from './Avatar';
+export * from './OrderChat';

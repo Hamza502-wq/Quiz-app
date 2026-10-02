@@ -156,12 +156,4 @@ export interface RiderLocationEvent {
   at: string;
 }
 
-export interface ChatMessage {
-  id: string;
-  orderId: string;
-  body: string;
-  createdAt: string;
-  readAt: string | null;
-  mine: boolean;
-  senderId: string;
-}
+export type { ChatMessage } from '@doorstep/web-shared';

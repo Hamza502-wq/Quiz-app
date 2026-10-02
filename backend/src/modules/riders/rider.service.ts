@@ -14,6 +14,7 @@ import { ACTIVE_STATUSES, orderInclude, presentOrder } from '../orders/order.pre
 import { transitionOrder } from '../orders/order.service';
 import { estimateEtaMinutes } from '../orders/tracking.service';
 import { getOfferPayload } from '../dispatch/dispatch.service';
+import { unreadMessageCounts } from '../chat/chat.service';
 
 export async function requireRider(userId: string, opts: { approved?: boolean } = {}) {
   const rider = await prisma.rider.findUnique({ where: { userId } });
@@ -49,12 +50,31 @@ export interface RiderRegistration {
   vehiclePhotoUrl?: string;
   photoUrl?: string;
   name?: string;
+  /** Delivery zone the rider works in; null or missing means any zone. */
+  zoneId?: string | null;
+}
+
+/** Active service zones a rider can choose to work in. */
+export function listRiderZones() {
+  return prisma.zone.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, city: true },
+    orderBy: [{ city: 'asc' }, { name: 'asc' }],
+  });
+}
+
+/** A zone a rider picks must exist and be switched on; null clears it (deliver anywhere). */
+export async function assertRiderZone(zoneId: string | null | undefined): Promise<void> {
+  if (!zoneId) return;
+  const zone = await prisma.zone.findUnique({ where: { id: zoneId }, select: { isActive: true } });
+  if (!zone || !zone.isActive) throw badRequest('Choose one of the listed delivery zones');
 }
 
 export async function registerRider(userId: string, input: RiderRegistration) {
   assertOwnPrivateUpload(userId, input.idDocumentUrl, 'ID document');
   assertOwnPrivateUpload(userId, input.licenceDocumentUrl, 'Licence document');
   if (input.licenceExpiry && input.licenceExpiry < new Date()) throw badRequest('Your licence has expired.');
+  await assertRiderZone(input.zoneId);
 
   const existing = await prisma.rider.findUnique({ where: { userId } });
   if (existing && existing.status !== 'REJECTED') throw conflict('You have already registered.');
@@ -133,6 +153,8 @@ export async function getRiderDashboard(userId: string) {
     },
     wallet,
     activeOrder: activeOrder ? presentOrder(activeOrder, 'rider') : null,
+    // Messages from the customer or store on the active order that the rider hasn't opened yet.
+    unreadMessages: activeOrder ? ((await unreadMessageCounts(userId, [activeOrder.id]))[activeOrder.id] ?? 0) : 0,
     pendingOffer: offer ? await getOfferPayload(offer.id) : null,
     stats: { today: todayStats, week: weekStats },
   };

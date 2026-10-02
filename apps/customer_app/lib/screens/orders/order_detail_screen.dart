@@ -148,6 +148,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   ],
                   if (order.rider != null && order.status.isActive) ...[const SizedBox(height: 12), _RiderCard(order: order)],
+                  if (order.status.isActive && (order.vendorName != null || order.rider != null)) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => ChatScreen(orderId: order.id, title: 'Messages · ${order.code}', phone: order.rider?.phone ?? order.vendorPhone),
+                      )),
+                      icon: const Icon(Icons.chat_bubble_outline_rounded),
+                      label: Text(order.vendorName != null && order.rider != null
+                          ? 'Message the store and your rider'
+                          : order.vendorName != null
+                              ? 'Message ${order.vendorName}'
+                              : 'Message your rider'),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _Timeline(order: order),
                   const SizedBox(height: 12),
@@ -359,7 +373,7 @@ class _RiderCard extends StatelessWidget {
           const SizedBox(width: 4),
           IconButton.filledTonal(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (_) => ChatScreen(orderId: order.id, title: r.name ?? 'Your rider', phone: r.phone),
+              builder: (_) => ChatScreen(orderId: order.id, title: 'Messages · ${order.code}', phone: r.phone),
             )),
             icon: const Icon(Icons.chat_bubble_outline_rounded),
             tooltip: 'Chat with rider',

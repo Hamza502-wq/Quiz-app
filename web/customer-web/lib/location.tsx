@@ -78,7 +78,3 @@ export function currentPosition(): Promise<{ lat: number; lng: number }> {
     );
   });
 }
-
-/** Shown instead of the map picker when Google Maps isn't configured. */
-export const MAP_UNAVAILABLE_MESSAGE =
-  "The map isn't available right now. Tap “Use my location”, or enter the coordinates from your phone's map app.";

@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bike, CheckCircle2, ChefHat, Clock, PackageCheck, XCircle } from 'lucide-react';
+import { Bike, CheckCircle2, ChefHat, Clock, MessageCircle, PackageCheck, UserPlus, XCircle } from 'lucide-react';
 import {
   Avatar,
   Badge,
   Button,
+  CallLink,
   Card,
   EmptyState,
   ErrorState,
@@ -14,6 +15,7 @@ import {
   Input,
   LoadingBlock,
   Modal,
+  OrderChat,
   OrderStatusBadge,
   PageHeader,
   Pagination,
@@ -38,6 +40,7 @@ import {
   type Paged,
 } from '@doorstep/web-shared';
 import { playNewOrderChime } from '@/components/orderSound';
+import { ChooseRiderModal } from '@/components/ChooseRiderModal';
 
 type Column = { key: string; title: string; icon: typeof Clock; statuses: Order['status'][] };
 
@@ -73,16 +76,22 @@ function Board() {
   const { data, error, loading, reload, setData } = useApi<Paged<Order>>('/vendor/orders', { status: 'active', pageSize: 100 });
   const [accepting, setAccepting] = useState<Order | null>(null);
   const [rejecting, setRejecting] = useState<Order | null>(null);
-  const [viewing, setViewing] = useState<Order | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [choosingRider, setChoosingRider] = useState<Order | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // The details window follows live updates to the order (e.g. a rider being assigned).
+  const viewing = data?.items.find((o) => o.id === viewingId) ?? null;
 
   const upsert = useCallback(
     (order: Order) => {
       setData((prev) => {
         const items = prev?.items ?? [];
         const active = ['PLACED', 'ACCEPTED', 'READY_FOR_PICKUP', 'PICKED_UP', 'ON_THE_WAY'].includes(order.status);
+        const previous = items.find((o) => o.id === order.id);
         const without = items.filter((o) => o.id !== order.id);
-        const next = active ? [order, ...without] : without;
+        // Order updates don't carry the unread-message count; keep the one we have.
+        const merged = { ...order, unreadMessages: order.unreadMessages ?? previous?.unreadMessages };
+        const next = active ? [merged, ...without] : without;
         return { ...(prev ?? { page: 1, pageSize: 100, totalPages: 1 }), items: next, total: next.length } as Paged<Order>;
       });
     },
@@ -97,12 +106,27 @@ function Board() {
   useSocketEvent<Order>('order:updated', (order) => {
     if (order && 'status' in order && 'items' in order) upsert(order);
   });
+  const setUnread = useCallback(
+    (orderId: string, count: (current: number) => number) =>
+      setData((prev) => {
+        const base = prev ?? ({ items: [], page: 1, pageSize: 100, total: 0, totalPages: 1 } as Paged<Order>);
+        return { ...base, items: base.items.map((o) => (o.id === orderId ? { ...o, unreadMessages: count(o.unreadMessages ?? 0) } : o)) };
+      }),
+    [setData],
+  );
+  const markRead = useCallback((orderId: string) => setUnread(orderId, () => 0), [setUnread]);
+  // A message from the customer or rider: badge the order unless its chat is open.
+  useSocketEvent<{ orderId: string; mine: boolean }>('chat:message', (m) => {
+    if (!data || m.mine || m.orderId === viewingId) return;
+    setUnread(m.orderId, (n) => n + 1);
+  });
   // Polling: a safety net while live updates are on, the main source when they're off.
   const { connected } = useSocket();
   useInterval(() => void reload(), connected ? 30_000 : 6_000);
 
-  // Without live updates, announce orders that appear between polls.
+  // Without live updates, announce orders and messages that appear between polls.
   const seenOrderIds = useRef<Set<string> | null>(null);
+  const seenUnread = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     if (!data) return;
     const placed = data.items.filter((o) => o.status === 'PLACED');
@@ -113,9 +137,12 @@ function Board() {
         playNewOrderChime();
         toast(fresh.length === 1 ? `New order ${fresh[0].code}!` : `${fresh.length} new orders!`, 'info');
       }
+      const newMessages = data.items.filter((o) => o.id !== viewingId && (o.unreadMessages ?? 0) > (seenUnread.current.get(o.id) ?? 0));
+      if (newMessages.length > 0) toast(`New message on ${newMessages.map((o) => o.code).join(', ')}`, 'info');
     }
     seenOrderIds.current = new Set([...(seen ?? []), ...data.items.map((o) => o.id)]);
-  }, [data, connected, toast]);
+    seenUnread.current = new Map(data.items.map((o) => [o.id, o.unreadMessages ?? 0]));
+  }, [data, connected, toast, viewingId]);
 
   const grouped = useMemo(() => {
     const byCol: Record<string, Order[]> = {};
@@ -165,10 +192,11 @@ function Board() {
                     key={order.id}
                     order={order}
                     busy={busyId === order.id}
-                    onOpen={() => setViewing(order)}
+                    onOpen={() => setViewingId(order.id)}
                     onAccept={() => setAccepting(order)}
                     onReject={() => setRejecting(order)}
                     onReady={() => void markReady(order)}
+                    onChooseRider={() => setChoosingRider(order)}
                   />
                 ))
               )}
@@ -179,7 +207,23 @@ function Board() {
 
       <AcceptModal order={accepting} onClose={() => setAccepting(null)} onDone={(o) => { upsert(o); setAccepting(null); toast(`${o.code} accepted`); }} />
       <RejectModal order={rejecting} onClose={() => setRejecting(null)} onDone={(o) => { upsert(o); setRejecting(null); toast(`${o.code} rejected`, 'info'); }} />
-      <OrderDetailModal order={viewing} onClose={() => setViewing(null)} />
+      <OrderDetailModal
+        order={viewing}
+        onClose={() => setViewingId(null)}
+        onRead={markRead}
+        onChooseRider={(o) => {
+          setViewingId(null);
+          setChoosingRider(o);
+        }}
+      />
+      <ChooseRiderModal
+        order={choosingRider}
+        onClose={() => setChoosingRider(null)}
+        onAssigned={(o) => {
+          upsert(o);
+          setChoosingRider(null);
+        }}
+      />
     </>
   );
 }
@@ -191,6 +235,7 @@ function OrderCard({
   onAccept,
   onReject,
   onReady,
+  onChooseRider,
 }: {
   order: Order;
   busy: boolean;
@@ -198,9 +243,11 @@ function OrderCard({
   onAccept: () => void;
   onReject: () => void;
   onReady: () => void;
+  onChooseRider: () => void;
 }) {
   const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
   const isNew = order.status === 'PLACED';
+  const unread = order.unreadMessages ?? 0;
   return (
     <Card className={`p-4 ${isNew ? 'ring-2 ring-brand' : ''}`}>
       <button type="button" onClick={onOpen} className="w-full text-left">
@@ -208,6 +255,11 @@ function OrderCard({
           <div>
             <p className="font-bold">{order.code}</p>
             <p className="text-xs text-muted">{timeAgo(order.timestamps.placedAt ?? order.timestamps.createdAt)}</p>
+            {unread > 0 ? (
+              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
+                <MessageCircle className="h-3 w-3" aria-hidden /> {unread} new message{unread === 1 ? '' : 's'}
+              </p>
+            ) : null}
           </div>
           <p className="font-bold text-brand">{formatMoney(order.amounts.subtotalCents)}</p>
         </div>
@@ -233,12 +285,18 @@ function OrderCard({
         </div>
         {order.rider ? (
           <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-ink-soft">
-            <Bike className="h-3.5 w-3.5" /> {order.rider.name} · {order.rider.vehiclePlate}
+            <Bike className="h-3.5 w-3.5" /> {order.rider.name}
+            {order.rider.vehiclePlate ? ` · ${order.rider.vehiclePlate}` : ''}
           </p>
         ) : order.status !== 'PLACED' ? (
           <p className="mt-2 text-xs text-muted">Finding a rider…</p>
         ) : null}
       </button>
+      {needsRider(order) ? (
+        <Button className="mt-3 w-full" size="sm" variant="secondary" icon={<UserPlus className="h-4 w-4" />} onClick={onChooseRider}>
+          Choose rider
+        </Button>
+      ) : null}
       {order.status === 'PLACED' ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button variant="secondary" size="sm" icon={<XCircle className="h-4 w-4" />} onClick={onReject}>
@@ -256,6 +314,11 @@ function OrderCard({
       ) : null}
     </Card>
   );
+}
+
+/** Accepted orders without a rider yet: the store can pick one itself. */
+function needsRider(order: Order): boolean {
+  return !order.rider && (order.status === 'ACCEPTED' || order.status === 'READY_FOR_PICKUP');
 }
 
 function AcceptModal({ order, onClose, onDone }: { order: Order | null; onClose: () => void; onDone: (o: Order) => void }) {
@@ -375,7 +438,21 @@ function RejectModal({ order, onClose, onDone }: { order: Order | null; onClose:
   );
 }
 
-function OrderDetailModal({ order, onClose }: { order: Order | null; onClose: () => void }) {
+function OrderDetailModal({
+  order,
+  onClose,
+  onRead,
+  onChooseRider,
+}: {
+  order: Order | null;
+  onClose: () => void;
+  onRead: (orderId: string) => void;
+  onChooseRider: (order: Order) => void;
+}) {
+  const orderId = order?.id;
+  const handleRead = useCallback(() => {
+    if (orderId) onRead(orderId);
+  }, [orderId, onRead]);
   return (
     <Modal open={Boolean(order)} onClose={onClose} title={order ? `Order ${order.code}` : ''}>
       {order ? (
@@ -387,19 +464,27 @@ function OrderDetailModal({ order, onClose }: { order: Order | null; onClose: ()
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex items-center gap-3">
               <Avatar src={order.customer?.photoUrl} name={order.customer?.name ?? 'Customer'} size="md" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs text-muted">Customer</p>
                 <p className="font-semibold">{order.customer?.name}</p>
+                {order.customer?.phone ? <CallLink phone={order.customer.phone} label="Call" className="mt-1 h-8 px-3 text-xs" /> : null}
               </div>
             </div>
             {order.rider ? (
               <div className="flex items-center gap-3">
                 <Avatar src={order.rider.photoUrl} name={order.rider.name ?? 'Rider'} size="md" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-muted">Rider collecting</p>
                   <p className="font-semibold">{order.rider.name ?? 'Rider'}</p>
                   <PlateBadge plate={order.rider.vehiclePlate} className="mt-0.5" />
+                  {order.rider.phone ? <CallLink phone={order.rider.phone} label="Call" className="mt-1 h-8 px-3 text-xs" /> : null}
                 </div>
+              </div>
+            ) : needsRider(order) ? (
+              <div className="flex items-center gap-3">
+                <Button size="sm" variant="secondary" icon={<UserPlus className="h-4 w-4" />} onClick={() => onChooseRider(order)}>
+                  Choose rider
+                </Button>
               </div>
             ) : null}
           </div>
@@ -436,10 +521,28 @@ function OrderDetailModal({ order, onClose }: { order: Order | null; onClose: ()
             <div className="rounded-xl bg-canvas p-3">
               <p className="font-semibold">Rider</p>
               <p>
-                {order.rider.name} · {order.rider.vehicleDescription} · <strong>{order.rider.vehiclePlate}</strong>
+                {[order.rider.name, order.rider.vehicleDescription].filter(Boolean).join(' · ')}
+                {order.rider.vehiclePlate ? (
+                  <>
+                    {' · '}
+                    <strong>{order.rider.vehiclePlate}</strong>
+                  </>
+                ) : null}
               </p>
             </div>
           ) : null}
+          <div>
+            <p className="mb-2 flex items-center gap-1.5 font-semibold">
+              <MessageCircle className="h-4 w-4 text-brand" aria-hidden /> Messages with the customer{order.rider ? ' and rider' : ''}
+            </p>
+            <OrderChat
+              orderId={order.id}
+              canSend
+              placeholder={order.rider ? 'Message the customer and rider' : 'Message the customer'}
+              emptyText="No messages yet. The customer and the rider see what you write here."
+              onRead={handleRead}
+            />
+          </div>
         </div>
       ) : null}
     </Modal>

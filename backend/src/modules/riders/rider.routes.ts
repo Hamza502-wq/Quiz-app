@@ -13,6 +13,8 @@ import {
   markDelivered,
   markOnTheWay,
   markPickedUp,
+  assertRiderZone,
+  listRiderZones,
   registerRider,
   requestRiderPayout,
   requireRider,
@@ -56,6 +58,8 @@ defineRoute(riderRouter, {
       vehiclePhotoUrl: imageUrl.optional(),
       // Profile photo shown to customers and admins; required unless the account already has one.
       photoUrl: imageUrl.optional(),
+      // Delivery zone from GET /rider/zones; leave out (or null) to take deliveries in any zone.
+      zoneId: z.string().trim().min(1).max(64).nullable().optional(),
     })
     .superRefine((body, ctx) => {
       if (body.vehicleType !== 'BICYCLE' && !body.vehiclePlate) {
@@ -68,6 +72,17 @@ defineRoute(riderRouter, {
     await registerRider(user.id, body);
     return getRiderDashboard(user.id);
   },
+});
+
+defineRoute(riderRouter, {
+  method: 'get',
+  path: '/zones',
+  basePath,
+  tags,
+  summary: 'Delivery zones a rider can choose to work in',
+  description: 'Set the chosen zone with PATCH /rider/me (or at registration). Riders with a zone get orders that start or end in it.',
+  auth: 'required',
+  handler: () => listRiderZones(),
 });
 
 defineRoute(riderRouter, {
@@ -90,7 +105,8 @@ defineRoute(riderRouter, {
   path: '/me',
   basePath,
   tags,
-  summary: 'Update payout details and vehicle colour',
+  summary: 'Update payout details, vehicle colour and delivery zone',
+  description: 'zoneId: one of GET /rider/zones, or null to take deliveries in any zone.',
   auth: 'required',
   roles,
   body: z.object({
@@ -99,9 +115,11 @@ defineRoute(riderRouter, {
     payoutAccountName: optionalTrimmed(80),
     payoutBankName: optionalTrimmed(80),
     vehicleColor: optionalTrimmed(20),
+    zoneId: z.string().trim().min(1).max(64).nullable().optional(),
   }),
   handler: async ({ body, user }) => {
     const rider = await requireRider(user.id);
+    await assertRiderZone(body.zoneId);
     await prisma.rider.update({ where: { id: rider.id }, data: body });
     return getRiderDashboard(user.id);
   },

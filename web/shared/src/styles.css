@@ -1,3 +1,6 @@
+/* Map tiles and controls for the OpenStreetMap location picker. */
+@import 'leaflet/dist/leaflet.css';
+
 /* DoorStep Zimbabwe design tokens (Tailwind v4 theme). Imported by each dashboard's globals.css. */
 @theme {
   --color-brand: #ff7a00;
@@ -186,4 +189,13 @@ html[data-splash='done'] .ds-splash {
   .ds-skeleton {
     animation: none;
   }
+}
+
+/* OpenStreetMap picker: the pin is an inline SVG, without Leaflet's default icon box. */
+.ds-map-pin {
+  background: transparent;
+  border: 0;
+}
+.ds-osm-map {
+  font: inherit;
 }

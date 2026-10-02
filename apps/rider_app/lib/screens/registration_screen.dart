@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../state/rider_controller.dart';
 import 'document_picker.dart';
+import 'zone_picker.dart';
 
 /// Rider onboarding: photo, ID, driver's licence and vehicle details. Submitted for admin approval.
 class RegistrationScreen extends StatefulWidget {
@@ -30,6 +31,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _idUrl;
   String? _licenceUrl;
   String? _vehicleUrl;
+  // Delivery zone (optional): null means any zone.
+  late String? _zoneId = widget.existing?.zoneId;
+  late String? _zoneName = widget.existing?.zoneName;
   bool _photoUploading = false;
   bool _submitting = false;
 
@@ -80,6 +84,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         'photoUrl': _photoUrl,
         if (_color.text.trim().isNotEmpty) 'vehicleColor': _color.text.trim(),
         if (_vehicleUrl != null) 'vehiclePhotoUrl': _vehicleUrl,
+        'zoneId': _zoneId,
       });
       await controller.refresh();
       if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -220,6 +225,27 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(height: 12),
                   DocumentTile(label: 'Photo of your vehicle (optional)', url: _vehicleUrl, onUploaded: (u) => setState(() => _vehicleUrl = u)),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SectionCard(
+              title: 'Where you deliver',
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.map_outlined, color: DsColors.orange),
+                title: Text(_zoneName ?? 'Any zone', style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(_zoneName == null ? 'Deliveries anywhere near you (you can choose a zone later)' : 'Orders that start or end in $_zoneName'),
+                trailing: const Text('Change', style: TextStyle(color: DsColors.orange, fontWeight: FontWeight.w700)),
+                onTap: () async {
+                  final choice = await pickDeliveryZone(context, load: context.read<RiderController>().zones, currentId: _zoneId);
+                  if (choice != null) {
+                    setState(() {
+                      _zoneId = choice.id;
+                      _zoneName = choice.name;
+                    });
+                  }
+                },
               ),
             ),
             const SizedBox(height: 20),

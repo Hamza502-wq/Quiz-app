@@ -116,6 +116,7 @@ void main() {
         'wallet': {'balanceCents': -1200, 'availableForPayoutCents': 0, 'cashOwedCents': 1200, 'cashLimitCents': 5000, 'cashLimitRemainingCents': 3800, 'outstandingCashCents': 1200},
         'activeOrder': null,
         'pendingOffer': null,
+        'unreadMessages': 2,
         'stats': {
           'today': {'deliveries': 3, 'earningsCents': 900},
           'week': {'deliveries': 20, 'earningsCents': 6500},
@@ -124,6 +125,8 @@ void main() {
       expect(dash.registered, isTrue);
       expect(dash.rider!.isApproved, isTrue);
       expect(dash.rider!.zoneName, 'Harare Metro');
+      expect(dash.rider!.zoneId, 'z1');
+      expect(dash.unreadMessages, 2);
       expect(dash.wallet!.cashOwedCents, 1200);
       expect(dash.today!.deliveries, 3);
       expect(RiderDashboard.fromJson({'registered': false}).registered, isFalse);
@@ -136,6 +139,22 @@ void main() {
       final profile = Profile.fromJson({'id': 'u1', 'phone': '+263774000301', 'roles': ['CUSTOMER'], 'avatarUrl': 'https://example.com/me.webp'});
       expect(profile.avatarUrl, 'https://example.com/me.webp');
       expect(Profile.fromJson(profile.toJson()).avatarUrl, 'https://example.com/me.webp');
+    });
+
+    test('chat messages say who wrote them', () {
+      final m = ChatMessage.fromJson({
+        'id': 'm1',
+        'orderId': 'o1',
+        'body': 'Packing it now',
+        'mine': false,
+        'createdAt': '2026-10-02T12:00:00.000Z',
+        'sender': {'role': 'store', 'name': 'Sadza Republic'},
+      });
+      expect(m.senderLabel, 'Sadza Republic · Store');
+      final old = ChatMessage.fromJson({'id': 'm2', 'orderId': 'o1', 'body': 'Hi', 'mine': true, 'createdAt': '2026-10-02T12:00:00.000Z'});
+      expect(old.senderLabel, isNull);
+      final zone = DeliveryZone.fromJson({'id': 'z1', 'name': 'Harare Metro', 'city': 'Harare'});
+      expect(zone.city, 'Harare');
     });
 
     test('unknown status falls back safely', () {

@@ -17,7 +17,7 @@ import {
   useAuth,
   type LatLng,
 } from '@doorstep/web-shared';
-import { MAP_UNAVAILABLE_MESSAGE, currentPosition, useDeliverTo } from '@/lib/location';
+import { currentPosition, useDeliverTo } from '@/lib/location';
 import { addressSummary } from '@/lib/format';
 import { DEMO_MODE } from '@/lib/demo/mode';
 import { DEMO_LOCATION } from '@/lib/demo/data';
@@ -193,7 +193,7 @@ export function DeliverToModal({ open, onClose }: { open: boolean; onClose: () =
         </div>
       ) : (
         <div className="space-y-4">
-          <MapPicker value={pin} onChange={setPin} height={300} unavailableMessage={MAP_UNAVAILABLE_MESSAGE} />
+          <MapPicker value={pin} onChange={setPin} height={300} />
           <Field label="Name this spot" hint="e.g. Office, Mum's house">
             <Input value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} />
           </Field>

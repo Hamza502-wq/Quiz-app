@@ -22,6 +22,7 @@ import { checkAndAwardBonuses } from '../wallet/bonus.service';
 import { notifyAsync } from '../notifications/notification.service';
 import { cancelOpenOffers, startAutoDispatch } from '../dispatch/dispatch.service';
 import { publishOrderUpdate } from './order.events';
+import { unreadMessageCounts } from '../chat/chat.service';
 import {
   ACTIVE_STATUSES,
   orderDetailInclude,
@@ -751,8 +752,13 @@ export async function listCustomerOrders(userId: string, page: number, pageSize:
     }),
     prisma.order.count({ where }),
   ]);
+  // Badge open orders with messages from the store or rider the customer hasn't read.
+  const unread = await unreadMessageCounts(
+    userId,
+    items.filter((o) => ACTIVE_STATUSES.includes(o.status)).map((o) => o.id),
+  );
   return {
-    items: items.map((o) => presentOrder(o, 'customer')),
+    items: items.map((o) => ({ ...presentOrder(o, 'customer'), unreadMessages: unread[o.id] ?? 0 })),
     total,
     page,
     pageSize,

@@ -20,7 +20,7 @@ npm run dev:admin
 npm run build          # production build of all three apps (includes type checking)
 ```
 
-Set `NEXT_PUBLIC_API_URL` to the API origin and add each app's origin to the API's `CORS_ORIGINS` (the defaults cover ports 3000–3002). Maps need `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (and a Map ID for advanced markers; `DEMO_MAP_ID` works in development). Without a key, maps are replaced by coordinate inputs (the website also offers "Use my location" and hides the tracking map, keeping status and ETA).
+Set `NEXT_PUBLIC_API_URL` to the API origin and add each app's origin to the API's `CORS_ORIGINS` (the defaults cover ports 3000–3002). Maps need `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (and a Map ID for advanced markers; `DEMO_MAP_ID` works in development). Without a key, the location picker uses an OpenStreetMap map (Leaflet, no key) with place search and "Use my location"; the tracking and live maps are hidden, keeping status and ETA. Places are searched and named with OpenStreetMap's Nominatim service in both cases, and coordinates are never shown.
 
 ### One site for everything (Netlify)
 

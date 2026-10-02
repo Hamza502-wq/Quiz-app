@@ -99,7 +99,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
             _OnlineCard(online: online, busy: controller.toggling, canGoOffline: active == null, onChanged: _toggle),
             const SizedBox(height: 16),
             if (active != null) ...[
-              _ActiveDeliveryCard(order: active),
+              _ActiveDeliveryCard(order: active, unreadMessages: d?.unreadMessages ?? 0),
               const SizedBox(height: 16),
             ] else if (online) ...[
               const _WaitingCard(),
@@ -196,8 +196,9 @@ class _WaitingCard extends StatelessWidget {
 }
 
 class _ActiveDeliveryCard extends StatelessWidget {
-  const _ActiveDeliveryCard({required this.order});
+  const _ActiveDeliveryCard({required this.order, required this.unreadMessages});
   final Order order;
+  final int unreadMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -224,6 +225,22 @@ class _ActiveDeliveryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium),
               Text(toPickup ? (order.pickup.landmark ?? order.pickup.address) : order.dropoff.landmark ?? order.dropoff.address,
                   style: const TextStyle(color: DsColors.inkSoft)),
+              if (unreadMessages > 0) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: DsColors.orange, borderRadius: BorderRadius.circular(20)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.chat_bubble_rounded, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text('$unreadMessages new message${unreadMessages == 1 ? '' : 's'}',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               const Row(
                 children: [

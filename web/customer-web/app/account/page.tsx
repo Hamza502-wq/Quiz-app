@@ -29,6 +29,7 @@ import { addressSummary } from '@/lib/format';
 import type { Address } from '@/lib/types';
 import { RequireCustomer } from '@/components/RequireCustomer';
 import { AddressFormModal } from '@/components/AddressFormModal';
+import { WorkspaceChoices, workspacesFor } from '@/components/WorkspaceLinks';
 
 export default function AccountPage() {
   return (
@@ -85,6 +86,13 @@ function Account() {
             if (welcome) router.replace(next ?? '/');
           }}
         />
+        {welcome || workspacesFor(user).length === 0 ? null : (
+          <Card>
+            <h2 className="font-semibold">Your other DoorStep apps</h2>
+            <p className="mb-4 mt-1 text-sm text-muted">This account also works in these apps. Sign in there with the same phone number.</p>
+            <WorkspaceChoices workspaces={workspacesFor(user)} />
+          </Card>
+        )}
         {welcome ? null : <Addresses />}
       </div>
     </div>

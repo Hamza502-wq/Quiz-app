@@ -212,7 +212,7 @@ function VendorDetailView() {
           <p>
             <strong>Location:</strong>{' '}
             <a className="text-brand hover:underline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${v.lat},${v.lng}`}>
-              {v.lat.toFixed(5)}, {v.lng.toFixed(5)}
+              Open in Google Maps
             </a>
           </p>
           <p>

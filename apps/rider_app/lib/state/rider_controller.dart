@@ -39,6 +39,10 @@ class RiderController extends ChangeNotifier {
         notifyListeners();
       }
     });
+    // A message from the customer or store: refresh so the unread count shows.
+    socket.on('chat:message', (data) {
+      if (data is Map && data['mine'] != true && data['orderId'] == _activeOrder?.id) refresh();
+    });
   }
 
   final ApiClient api;
@@ -154,6 +158,21 @@ class RiderController extends ChangeNotifier {
     notifyListeners();
     if (!order.status.isActive) await refresh();
     return order;
+  }
+
+  /// Delivery zones the rider can choose to work in.
+  Future<List<DeliveryZone>> zones() async {
+    final data = await api.get('/rider/zones') as List;
+    return data.map((e) => DeliveryZone.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Sets the zone the rider takes deliveries in; null means any zone.
+  Future<void> setZone(String? zoneId) async {
+    final data = await api.patch('/rider/me', body: {'zoneId': zoneId});
+    _dashboard = RiderDashboard.fromJson(data as Map<String, dynamic>);
+    _activeOrder = _dashboard!.activeOrder;
+    _offer = _dashboard!.pendingOffer;
+    notifyListeners();
   }
 
   /// Hands an assigned delivery back before pickup (it is re-dispatched).
