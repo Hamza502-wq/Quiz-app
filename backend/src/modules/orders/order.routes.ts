@@ -9,6 +9,7 @@ import { assertOnlinePaymentsAvailable, payForOrder, tipRider } from '../payment
 import { rateOrder } from '../ratings/rating.service';
 import { listMessages, sendMessage } from '../chat/chat.service';
 import { notifyAdminsAsync } from '../notifications/notification.service';
+import { chatLimiter } from '../../middleware/rateLimit';
 import {
   cancelByCustomer,
   createParcelOrder,
@@ -350,6 +351,7 @@ defineRoute(orderRouter, {
   auth: 'required',
   params: idParams,
   status: 201,
+  middleware: [chatLimiter],
   body: z.object({ body: trimmed(1000) }),
   handler: ({ params, body, user }) => sendMessage(user, params.id, body.body),
 });

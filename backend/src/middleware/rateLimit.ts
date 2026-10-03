@@ -55,3 +55,57 @@ export const loginLimiter = rateLimit({
   skip,
   message: message('Too many attempts. Try again in 15 minutes.'),
 });
+
+/** Signed-in routes count per account (routes run authentication before this). */
+const userKey = (req: Request) => (req.user ? `user:${req.user.id}` : ipKey(req));
+
+/**
+ * Chat messages (order and marketplace): 20 per minute per account. In-memory, so on
+ * serverless hosting each instance counts separately; the marketplace also checks a
+ * database-backed limit that holds across instances.
+ */
+export const chatLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  skip,
+  message: message('You are sending messages too fast. Wait a moment and try again.'),
+});
+
+/** Auction bids: 12 per minute per account (plus a database-backed limit). */
+export const bidLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 12,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  skip,
+  message: message('Too many bids. Wait a moment and try again.'),
+});
+
+/** Swap offers and counter offers: 20 per 10 minutes per account. */
+export const offerLimiter = rateLimit({
+  windowMs: 10 * 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  skip,
+  message: message('Too many offers. Try again in a few minutes.'),
+});
+
+/**
+ * Marketplace phrase searches and saved searches: 30 per minute per account (per IP when signed
+ * out), since each phrase may call the AI service. Browsing without a phrase isn't counted.
+ */
+export const searchLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userKey,
+  skip: (req) => env.isTest || (req.method === 'GET' && !(typeof req.query.q === 'string' && req.query.q.trim())),
+  message: message('Too many searches. Wait a moment and try again.'),
+});

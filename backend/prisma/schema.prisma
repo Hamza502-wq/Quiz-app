@@ -200,6 +200,20 @@ model User {
   chatMessages   ChatMessage[]
   chatReads      ChatRead[]
 
+  // Marketplace
+  sellerProfile        SellerProfile?
+  marketThreadsBuying  ListingThread[]  @relation("ThreadBuyer")
+  marketThreadsSelling ListingThread[]  @relation("ThreadSeller")
+  marketMessages       ListingMessage[]
+  barterOffersMade     BarterOffer[]    @relation("OfferBuyer")
+  barterOffersReceived BarterOffer[]    @relation("OfferSeller")
+  barterOffersCreated  BarterOffer[]    @relation("OfferCreatedBy")
+  bids                 Bid[]
+  listingsLeading      Listing[]        @relation("ListingHighestBidder")
+  listingsBought       Listing[]        @relation("ListingSoldTo")
+  sellerFollows        SellerFollow[]
+  savedSearches        SavedSearch[]
+
   @@map("users")
 }
 
@@ -865,4 +879,237 @@ model StoredFile {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("stored_files")
+}
+
+// ─────────────────────────────── Marketplace ───────────────────────────────
+// Anyone can sell: individuals and local vendors list items or services, chat with
+// buyers, take barter offers and run auctions. Separate from the delivery stores above.
+
+enum ListingKind {
+  ITEM
+  SERVICE
+}
+
+enum ListingCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  REMOVED
+}
+
+enum SaleType {
+  FIXED
+  AUCTION
+}
+
+enum BarterOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COUNTERED
+  WITHDRAWN
+}
+
+/// A seller's storefront. Created the first time someone sells.
+model SellerProfile {
+  id            String         @id @default(cuid())
+  userId        String         @unique @map("user_id")
+  displayName   String         @map("display_name")
+  bio           String?
+  area          String // suburb or town
+  city          String
+  lat           Float // default location for new listings
+  lng           Float
+  whatsappPhone String?        @map("whatsapp_phone") // E.164; the account phone when empty
+  showWhatsapp  Boolean        @default(true) @map("show_whatsapp")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings      Listing[]
+  followers     SellerFollow[]
+
+  @@map("seller_profiles")
+}
+
+model Listing {
+  id              String            @id @default(cuid())
+  sellerId        String            @map("seller_id")
+  kind            ListingKind       @default(ITEM)
+  title           String
+  description     String
+  category        String
+  condition       ListingCondition?
+  /// Fixed price, or the starting price of an auction (US cents).
+  priceCents      Int               @map("price_cents")
+  saleType        SaleType          @default(FIXED) @map("sale_type")
+  openToBarter    Boolean           @default(false) @map("open_to_barter")
+  status          ListingStatus     @default(ACTIVE)
+  area            String
+  city            String
+  lat             Float
+  lng             Float
+  auctionEndsAt   DateTime?         @map("auction_ends_at")
+  currentBidCents Int?              @map("current_bid_cents")
+  bidCount        Int               @default(0) @map("bid_count")
+  highestBidderId String?           @map("highest_bidder_id")
+  auctionClosedAt DateTime?         @map("auction_closed_at")
+  soldToId        String?           @map("sold_to_id")
+  soldAt          DateTime?         @map("sold_at")
+  /// Lower-case title, description, category and place, for keyword search.
+  searchText      String            @map("search_text")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  seller          SellerProfile     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  highestBidder   User?             @relation("ListingHighestBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+  soldTo          User?             @relation("ListingSoldTo", fields: [soldToId], references: [id], onDelete: SetNull)
+  photos          ListingPhoto[]
+  threads         ListingThread[]
+  bids            Bid[]
+  offersReceived  BarterOffer[]
+  offeredIn       BarterOfferItem[]
+
+  @@index([status, category])
+  @@index([status, createdAt])
+  @@index([sellerId, status])
+  @@index([saleType, status, auctionEndsAt])
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String  @id @default(cuid())
+  listingId String  @map("listing_id")
+  url       String
+  thumbUrl  String? @map("thumb_url")
+  sortOrder Int     @default(0) @map("sort_order")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
+  @@map("listing_photos")
+}
+
+/// A buyer's conversation with the seller about one listing.
+model ListingThread {
+  id            String           @id @default(cuid())
+  listingId     String           @map("listing_id")
+  buyerId       String           @map("buyer_id")
+  sellerUserId  String           @map("seller_user_id")
+  lastMessageAt DateTime         @default(now()) @map("last_message_at")
+  buyerReadAt   DateTime?        @map("buyer_read_at")
+  sellerReadAt  DateTime?        @map("seller_read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  listing       Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer         User             @relation("ThreadBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerUser    User             @relation("ThreadSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  messages      ListingMessage[]
+
+  @@unique([listingId, buyerId])
+  @@index([buyerId, lastMessageAt])
+  @@index([sellerUserId, lastMessageAt])
+  @@map("listing_threads")
+}
+
+model ListingMessage {
+  id        String        @id @default(cuid())
+  threadId  String        @map("thread_id")
+  senderId  String        @map("sender_id")
+  body      String
+  createdAt DateTime      @default(now()) @map("created_at")
+  thread    ListingThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([senderId, createdAt])
+  @@map("listing_messages")
+}
+
+/// Items (and optional cash from the buyer) offered in exchange for a listing. A counter
+/// offer is a new row pointing at the offer it answers.
+model BarterOffer {
+  id           String            @id @default(cuid())
+  listingId    String            @map("listing_id")
+  buyerId      String            @map("buyer_id")
+  sellerUserId String            @map("seller_user_id")
+  createdById  String            @map("created_by_id")
+  /// Cash the buyer adds on top of the items (US cents).
+  cashCents    Int               @default(0) @map("cash_cents")
+  message      String?
+  status       BarterOfferStatus @default(PENDING)
+  parentId     String?           @map("parent_id")
+  respondedAt  DateTime?         @map("responded_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  listing      Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer        User              @relation("OfferBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerUser   User              @relation("OfferSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("OfferCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  parent       BarterOffer?      @relation("OfferCounters", fields: [parentId], references: [id], onDelete: SetNull)
+  counters     BarterOffer[]     @relation("OfferCounters")
+  items        BarterOfferItem[]
+
+  @@index([listingId, status])
+  @@index([buyerId, createdAt])
+  @@index([sellerUserId, createdAt])
+  @@index([createdById, createdAt])
+  @@map("barter_offers")
+}
+
+model BarterOfferItem {
+  offerId   String      @map("offer_id")
+  listingId String      @map("listing_id")
+  offer     BarterOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  listing   Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([offerId, listingId])
+  @@index([listingId])
+  @@map("barter_offer_items")
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  listingId   String   @map("listing_id")
+  bidderId    String   @map("bidder_id")
+  amountCents Int      @map("amount_cents")
+  createdAt   DateTime @default(now()) @map("created_at")
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder      User     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([bidderId, createdAt])
+  @@map("bids")
+}
+
+model SellerFollow {
+  followerId String        @map("follower_id")
+  sellerId   String        @map("seller_id")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  follower   User          @relation(fields: [followerId], references: [id], onDelete: Cascade)
+  seller     SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, sellerId])
+  @@index([sellerId])
+  @@map("seller_follows")
+}
+
+/// A search someone wants alerts for: new listings that match, near where they saved it.
+model SavedSearch {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  query          String
+  /// Interpreted filters (category, keywords, prices, …) used to match new listings.
+  filters        Json
+  lat            Float?
+  lng            Float?
+  radiusKm       Float     @default(15) @map("radius_km")
+  lastNotifiedAt DateTime? @map("last_notified_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
 }

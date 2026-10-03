@@ -27,11 +27,11 @@ defineRoute(uploadRouter, {
   tags,
   summary: 'Upload an image (multipart field "file")',
   description:
-    'kind=product|vendor|avatar are public; kind=document (ID, licence) and kind=proof (delivery photo) are private. Returns full and thumbnail (low-data) URLs.',
+    'kind=product|vendor|avatar|listing are public (listing: marketplace photos, any signed-in user); kind=document (ID, licence) and kind=proof (delivery photo) are private. Returns full and thumbnail (low-data) URLs.',
   auth: 'required',
   middleware: [upload.single('file')],
   contentType: 'multipart/form-data',
-  query: z.object({ kind: z.enum(['product', 'vendor', 'avatar', 'document', 'proof']) }),
+  query: z.object({ kind: z.enum(['product', 'vendor', 'avatar', 'listing', 'document', 'proof']) }),
   status: 201,
   handler: async ({ req, query, user }) => {
     if (!req.file) throw badRequest('Attach an image in the "file" field');

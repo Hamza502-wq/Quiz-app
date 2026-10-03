@@ -10,7 +10,7 @@ export const UPLOAD_ROOT = path.resolve(env.UPLOAD_DIR);
 export const PUBLIC_DIR = path.join(UPLOAD_ROOT, 'public');
 export const PRIVATE_DIR = path.join(UPLOAD_ROOT, 'private');
 
-export type UploadKind = 'product' | 'vendor' | 'avatar' | 'document' | 'proof';
+export type UploadKind = 'product' | 'vendor' | 'avatar' | 'listing' | 'document' | 'proof';
 const PRIVATE_KINDS: UploadKind[] = ['document', 'proof'];
 
 export const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -76,7 +76,7 @@ export async function storeImage(buffer: Buffer, kind: UploadKind, userId: strin
 }
 
 const FILE_NAME = /^[a-f0-9]{24}(-sm)?\.webp$/;
-const PUBLIC_KINDS: UploadKind[] = ['product', 'vendor', 'avatar'];
+const PUBLIC_KINDS: UploadKind[] = ['product', 'vendor', 'avatar', 'listing'];
 
 /** Resolves a private file path, refusing anything that escapes the private directory. */
 export function resolvePrivateFile(ownerId: string, file: string): string | null {
@@ -95,4 +95,32 @@ export async function readStoredFile(relativePath: string): Promise<{ mimeType: 
 export function publicFilePath(kind: string, file: string): string | null {
   if (!PUBLIC_KINDS.includes(kind as UploadKind) || !FILE_NAME.test(file)) return null;
   return `public/${kind}/${file}`;
+}
+
+/**
+ * For image links people submit (e.g. listing photos): returns the stored file's relative
+ * path when the link points at an image this server stored under `kind`, otherwise null.
+ * The host isn't checked (deploy previews share the database); the file must exist.
+ */
+export async function ownPublicUpload(url: string, kind: UploadKind): Promise<string | null> {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const m = pathname.match(/^\/uploads\/public\/([a-z]+)\/([a-f0-9]{24}(?:-sm)?\.webp)$/);
+  if (!m || m[1] !== kind) return null;
+  const relative = publicFilePath(m[1], m[2]);
+  if (!relative) return null;
+  if (env.UPLOAD_STORAGE === 'database') {
+    const row = await prisma.storedFile.findUnique({ where: { path: relative }, select: { path: true } });
+    return row ? relative : null;
+  }
+  try {
+    await fs.access(path.join(UPLOAD_ROOT, relative));
+    return relative;
+  } catch {
+    return null;
+  }
 }

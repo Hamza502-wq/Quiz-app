@@ -21,6 +21,7 @@ import { orderRouter } from './modules/orders/order.routes';
 import { paymentRouter } from './modules/payments/payment.routes';
 import { riderRouter } from './modules/riders/rider.routes';
 import { adminRouter } from './modules/admin/admin.routes';
+import { marketRouter } from './modules/market/market.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -108,6 +109,7 @@ export function createApp(): Express {
   app.use('/api/v1/orders', orderRouter);
   app.use('/api/v1/rider', riderRouter);
   app.use('/api/v1/admin', adminRouter);
+  app.use('/api/v1/market', marketRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

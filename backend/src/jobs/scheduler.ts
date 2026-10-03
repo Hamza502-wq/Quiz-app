@@ -1,5 +1,6 @@
 import { logger } from '../lib/logger';
 import { runDispatchSweep } from '../modules/dispatch/dispatch.service';
+import { closeEndedAuctions } from '../modules/market/auction.service';
 import { expireUnpaidOrders } from '../modules/orders/order.service';
 import { pollPendingPayments } from '../modules/payments/payment.service';
 import { runWeeklyRiderPayouts } from '../modules/riders/rider.service';
@@ -14,6 +15,7 @@ const JOBS: Job[] = [
   { name: 'dispatch-sweep', everyMs: 10_000, run: runDispatchSweep },
   { name: 'poll-payments', everyMs: 30_000, run: pollPendingPayments },
   { name: 'expire-unpaid-orders', everyMs: 60_000, run: expireUnpaidOrders },
+  { name: 'close-ended-auctions', everyMs: 30_000, run: closeEndedAuctions },
   { name: 'weekly-rider-payouts', everyMs: 60 * 60_000, run: () => runWeeklyRiderPayouts(false) },
 ];
 

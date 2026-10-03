@@ -34,6 +34,8 @@ const LOCATION_MIN_INTERVAL_MS = 1_000;
  * Client → server events:
  *   order:subscribe { orderId }   — join an order's live room (access-checked)
  *   order:unsubscribe { orderId }
+ *   listing:subscribe { listingId } — join a marketplace listing's live room (auction bids)
+ *   listing:unsubscribe { listingId }
  *   rider:location { lat, lng, heading?, speed? } — riders only
  * Server → client events: see ServerEvents in ./io.ts
  */
@@ -91,6 +93,26 @@ export function initSocket(httpServer: HttpServer): Server {
     socket.on('order:unsubscribe', async (payload: unknown) => {
       const parsed = z.object({ orderId: z.string().min(1).max(64) }).safeParse(payload);
       if (parsed.success) await socket.leave(rooms.order(parsed.data.orderId));
+    });
+
+    // Auction bids are public, so any signed-in socket may watch a listing that exists.
+    socket.on('listing:subscribe', async (payload: unknown, ack?: Ack) => {
+      const parsed = z.object({ listingId: z.string().min(1).max(64) }).safeParse(payload);
+      if (!parsed.success) return ack?.({ ok: false, error: 'Invalid payload' });
+      try {
+        const listing = await prisma.listing.findUnique({ where: { id: parsed.data.listingId }, select: { id: true, status: true } });
+        if (!listing || listing.status === 'REMOVED') return ack?.({ ok: false, error: 'Listing not found' });
+        await socket.join(rooms.listing(listing.id));
+        ack?.({ ok: true });
+      } catch (err) {
+        logger.error({ err }, 'listing:subscribe failed');
+        ack?.({ ok: false, error: 'Server error' });
+      }
+    });
+
+    socket.on('listing:unsubscribe', async (payload: unknown) => {
+      const parsed = z.object({ listingId: z.string().min(1).max(64) }).safeParse(payload);
+      if (parsed.success) await socket.leave(rooms.listing(parsed.data.listingId));
     });
 
     socket.on('rider:location', async (payload: unknown, ack?: Ack) => {

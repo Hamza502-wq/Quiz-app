@@ -15,6 +15,8 @@ export const rooms = {
   order: (id: string) => `order:${id}`,
   vendor: (id: string) => `vendor:${id}`,
   rider: (id: string) => `rider:${id}`,
+  /** Marketplace listing: live auction bids. */
+  listing: (id: string) => `listing:${id}`,
   admins: 'admins',
 };
 
@@ -32,4 +34,7 @@ export const ServerEvents = {
   chatMessage: 'chat:message',
   notification: 'notification',
   riderStatus: 'rider:status',
+  listingBid: 'listing:bid',
+  marketMessage: 'market:message',
+  marketOffer: 'market:offer',
 } as const;

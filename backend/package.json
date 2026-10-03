@@ -20,6 +20,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
