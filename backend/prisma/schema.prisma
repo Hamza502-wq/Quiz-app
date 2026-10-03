@@ -1,0 +1,1115 @@
+// DoorStep Zimbabwe — PostgreSQL schema
+// Money is stored as integer US-dollar cents (`*Cents`). ZiG (ZWG) amounts are
+// derived from the exchange rate captured on each order/payment.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "rhel-openssl-3.0.x" is the runtime of Netlify Functions (AWS Lambda).
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum RoleName {
+  CUSTOMER
+  RIDER
+  VENDOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum VehicleType {
+  MOTORBIKE
+  BICYCLE
+  CAR
+}
+
+enum OrderType {
+  DELIVERY // vendor order delivered to the customer
+  PARCEL // point-to-point parcel pickup and drop-off
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PLACED
+  ACCEPTED
+  READY_FOR_PICKUP
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  REJECTED
+  CANCELLED
+}
+
+enum ParcelSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum PaymentMethod {
+  ECOCASH
+  ONEMONEY
+  CARD
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentPurpose {
+  ORDER
+  TIP
+}
+
+enum Currency {
+  USD
+  ZWG
+}
+
+enum WalletTxType {
+  DELIVERY_FEE
+  TIP
+  BONUS
+  CASH_COLLECTED
+  CASH_REMITTED
+  PAYOUT
+  PAYOUT_REVERSAL
+  ADJUSTMENT
+}
+
+enum CashCollectionStatus {
+  OUTSTANDING
+  SETTLED
+}
+
+enum PayeeType {
+  RIDER
+  VENDOR
+}
+
+enum PayoutMethod {
+  ECOCASH
+  ONEMONEY
+  BANK
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  REJECTED
+}
+
+enum RatingTarget {
+  VENDOR
+  RIDER
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  SMS
+  WHATSAPP
+}
+
+enum DispatchOfferStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+}
+
+enum ProofType {
+  PHOTO
+  PIN
+}
+
+enum BonusPeriod {
+  DAILY
+  WEEKLY
+}
+
+// ─────────────────────────── Identity & auth ───────────────────────────
+
+model Role {
+  id    Int        @id @default(autoincrement())
+  name  RoleName   @unique
+  users UserRole[]
+
+  @@map("roles")
+}
+
+model User {
+  id                  String              @id @default(cuid())
+  phone               String              @unique // E.164, e.g. +263771234567
+  name                String?
+  email               String?
+  avatarUrl           String?             @map("avatar_url") // profile photo (public upload)
+  passwordHash        String?             @map("password_hash")
+  status              UserStatus          @default(ACTIVE)
+  preferredCurrency   Currency            @default(USD) @map("preferred_currency")
+  notificationChannel NotificationChannel @default(SMS) @map("notification_channel") // SMS or WHATSAPP fallback
+  lastSeenAt          DateTime?           @map("last_seen_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  roles          UserRole[]
+  customer       Customer?
+  rider          Rider?
+  vendor         Vendor?
+  refreshTokens  RefreshToken[]
+  deviceTokens   DeviceToken[]
+  notifications  Notification[]
+  ratingsGiven   Rating[]
+  disputesRaised Dispute[]      @relation("DisputeRaisedBy")
+  chatMessages   ChatMessage[]
+  chatReads      ChatRead[]
+
+  // Marketplace
+  sellerProfile        SellerProfile?
+  marketThreadsBuying  ListingThread[]  @relation("ThreadBuyer")
+  marketThreadsSelling ListingThread[]  @relation("ThreadSeller")
+  marketMessages       ListingMessage[]
+  barterOffersMade     BarterOffer[]    @relation("OfferBuyer")
+  barterOffersReceived BarterOffer[]    @relation("OfferSeller")
+  barterOffersCreated  BarterOffer[]    @relation("OfferCreatedBy")
+  bids                 Bid[]
+  listingsLeading      Listing[]        @relation("ListingHighestBidder")
+  listingsBought       Listing[]        @relation("ListingSoldTo")
+  sellerFollows        SellerFollow[]
+  savedSearches        SavedSearch[]
+
+  @@map("users")
+}
+
+model UserRole {
+  userId    String   @map("user_id")
+  roleId    Int      @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  phone      String
+  codeHash   String    @map("code_hash") // HMAC-SHA256(code) — the plain code is never stored
+  expiresAt  DateTime  @map("expires_at")
+  attempts   Int       @default(0)
+  consumedAt DateTime? @map("consumed_at")
+  ip         String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash") // SHA-256 of the opaque token
+  familyId   String    @map("family_id") // rotation family, revoked as a whole on reuse
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  replacedBy String?   @map("replaced_by")
+  userAgent  String?   @map("user_agent")
+  ip         String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// ─────────────────────────────── Customers ───────────────────────────────
+
+model Customer {
+  id               String    @id @default(cuid())
+  userId           String    @unique @map("user_id")
+  defaultAddressId String?   @map("default_address_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses        Address[]
+  orders           Order[]
+
+  @@map("customers")
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String   @map("customer_id")
+  label      String   @default("Home")
+  lat        Float
+  lng        Float
+  street     String?
+  suburb     String?
+  city       String   @default("Harare")
+  landmark   String // e.g. "blue gate opposite Spar"
+  isDeleted  Boolean  @default(false) @map("is_deleted")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+// ─────────────────────────────── Zones ───────────────────────────────
+
+model Zone {
+  id                    String   @id @default(cuid())
+  name                  String
+  city                  String
+  centerLat             Float    @map("center_lat")
+  centerLng             Float    @map("center_lng")
+  radiusKm              Float    @map("radius_km")
+  polygon               Json? // optional [[lat,lng],...] ring; overrides radius when present
+  isActive              Boolean  @default(true) @map("is_active")
+  deliveryFeeBaseCents  Int?     @map("delivery_fee_base_cents")
+  deliveryFeePerKmCents Int?     @map("delivery_fee_per_km_cents")
+  riderBaseCents        Int?     @map("rider_base_cents")
+  riderPerKmCents       Int?     @map("rider_per_km_cents")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  vendors               Vendor[]
+  riders                Rider[]
+  orders                Order[]
+
+  @@map("zones")
+}
+
+// ─────────────────────────────── Vendors ───────────────────────────────
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // food | groceries | pharmacy | parcels
+  icon      String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  vendors   Vendor[]
+
+  @@map("categories")
+}
+
+model Vendor {
+  id                String         @id @default(cuid())
+  userId            String         @unique @map("user_id")
+  categoryId        String         @map("category_id")
+  zoneId            String?        @map("zone_id")
+  name              String
+  slug              String         @unique
+  description       String?
+  phone             String
+  email             String?
+  logoUrl           String?        @map("logo_url")
+  coverUrl          String?        @map("cover_url")
+  lat               Float
+  lng               Float
+  addressLine       String         @map("address_line")
+  landmark          String?
+  city              String         @default("Harare")
+  status            ApprovalStatus @default(PENDING)
+  isAcceptingOrders Boolean        @default(true) @map("is_accepting_orders")
+  commissionRateBps Int?           @map("commission_rate_bps") // override of global rate; 1500 = 15%
+  avgPrepMinutes    Int            @default(20) @map("avg_prep_minutes")
+  minOrderCents     Int            @default(0) @map("min_order_cents")
+  ratingAvg         Float          @default(0) @map("rating_avg")
+  ratingCount       Int            @default(0) @map("rating_count")
+  payoutMethod      PayoutMethod?  @map("payout_method")
+  payoutAccount     String?        @map("payout_account")
+  payoutAccountName String?        @map("payout_account_name")
+  payoutBankName    String?        @map("payout_bank_name")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category            @relation(fields: [categoryId], references: [id])
+  zone         Zone?               @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  openingHours VendorOpeningHour[]
+  sections     MenuSection[]
+  products     Product[]
+  orders       Order[]
+  ratings      Rating[]
+  payouts      Payout[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@map("vendors")
+}
+
+model VendorOpeningHour {
+  id        String @id @default(cuid())
+  vendorId  String @map("vendor_id")
+  dayOfWeek Int    @map("day_of_week") // 0 = Sunday … 6 = Saturday (Africa/Harare)
+  opensAt   String @map("opens_at") // "HH:mm"
+  closesAt  String @map("closes_at") // "HH:mm"; earlier than opensAt means past midnight
+  vendor    Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, dayOfWeek])
+  @@map("vendor_opening_hours")
+}
+
+model MenuSection {
+  id        String    @id @default(cuid())
+  vendorId  String    @map("vendor_id")
+  name      String
+  sortOrder Int       @default(0) @map("sort_order")
+  vendor    Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@index([vendorId])
+  @@map("menu_sections")
+}
+
+model Product {
+  id          String       @id @default(cuid())
+  vendorId    String       @map("vendor_id")
+  sectionId   String?      @map("section_id")
+  name        String
+  description String?
+  priceCents  Int          @map("price_cents")
+  imageUrl    String?      @map("image_url")
+  thumbUrl    String?      @map("thumb_url")
+  isAvailable Boolean      @default(true) @map("is_available")
+  trackStock  Boolean      @default(false) @map("track_stock")
+  stockQty    Int          @default(0) @map("stock_qty")
+  sortOrder   Int          @default(0) @map("sort_order")
+  isDeleted   Boolean      @default(false) @map("is_deleted")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  section     MenuSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  orderItems  OrderItem[]
+
+  @@index([vendorId])
+  @@map("products")
+}
+
+// ─────────────────────────────── Riders ───────────────────────────────
+
+model Rider {
+  id                 String         @id @default(cuid())
+  userId             String         @unique @map("user_id")
+  zoneId             String?        @map("zone_id")
+  status             ApprovalStatus @default(PENDING)
+  nationalId         String         @map("national_id")
+  idDocumentUrl      String         @map("id_document_url")
+  licenceNumber      String         @map("licence_number")
+  licenceDocumentUrl String         @map("licence_document_url")
+  licenceExpiry      DateTime?      @map("licence_expiry")
+  vehicleType        VehicleType    @default(MOTORBIKE) @map("vehicle_type")
+  vehicleMake        String?        @map("vehicle_make")
+  vehicleModel       String?        @map("vehicle_model")
+  vehiclePlate       String?        @map("vehicle_plate") // Zimbabwean plate, e.g. "AEZ 1234"; none for bicycles
+  vehicleColor       String?        @map("vehicle_color")
+  vehiclePhotoUrl    String?        @map("vehicle_photo_url")
+  isOnline           Boolean        @default(false) @map("is_online")
+  lat                Float?
+  lng                Float?
+  heading            Float?
+  locationUpdatedAt  DateTime?      @map("location_updated_at")
+  cashLimitCents     Int?           @map("cash_limit_cents") // override of global cash limit
+  ratingAvg          Float          @default(0) @map("rating_avg")
+  ratingCount        Int            @default(0) @map("rating_count")
+  rejectionReason    String?        @map("rejection_reason")
+  approvedAt         DateTime?      @map("approved_at")
+  payoutMethod       PayoutMethod?  @map("payout_method")
+  payoutAccount      String?        @map("payout_account")
+  payoutAccountName  String?        @map("payout_account_name")
+  payoutBankName     String?        @map("payout_bank_name")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zone            Zone?            @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  wallet          RiderWallet?
+  orders          Order[]
+  offers          DispatchOffer[]
+  cashCollections CashCollection[]
+  payouts         Payout[]
+  ratings         Rating[]
+  bonusAwards     BonusAward[]
+
+  @@index([status, isOnline])
+  @@map("riders")
+}
+
+model RiderWallet {
+  id           String              @id @default(cuid())
+  riderId      String              @unique @map("rider_id")
+  balanceCents Int                 @default(0) @map("balance_cents") // negative = rider owes the platform
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  rider        Rider               @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("rider_wallets")
+}
+
+model WalletTransaction {
+  id                String       @id @default(cuid())
+  walletId          String       @map("wallet_id")
+  type              WalletTxType
+  amountCents       Int          @map("amount_cents") // signed: credit > 0, debit < 0
+  balanceAfterCents Int          @map("balance_after_cents")
+  orderId           String?      @map("order_id")
+  payoutId          String?      @map("payout_id")
+  description       String
+  createdById       String?      @map("created_by_id")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  wallet            RiderWallet  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order             Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  payout            Payout?      @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model CashCollection {
+  id           String               @id @default(cuid())
+  riderId      String               @map("rider_id")
+  orderId      String               @unique @map("order_id")
+  amountCents  Int                  @map("amount_cents") // USD-equivalent cash taken from the customer
+  settledCents Int                  @default(0) @map("settled_cents")
+  status       CashCollectionStatus @default(OUTSTANDING)
+  settledAt    DateTime?            @map("settled_at")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  rider        Rider                @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  order        Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([riderId, status])
+  @@map("cash_collections")
+}
+
+model Payout {
+  id            String              @id @default(cuid())
+  payeeType     PayeeType           @map("payee_type")
+  riderId       String?             @map("rider_id")
+  vendorId      String?             @map("vendor_id")
+  amountCents   Int                 @map("amount_cents")
+  method        PayoutMethod
+  accountNumber String              @map("account_number") // mobile number or bank account
+  accountName   String?             @map("account_name")
+  bankName      String?             @map("bank_name")
+  status        PayoutStatus        @default(PENDING)
+  reference     String?
+  notes         String?
+  isAutomatic   Boolean             @default(false) @map("is_automatic")
+  periodStart   DateTime?           @map("period_start")
+  periodEnd     DateTime?           @map("period_end")
+  requestedAt   DateTime            @default(now()) @map("requested_at")
+  processedAt   DateTime?           @map("processed_at")
+  processedById String?             @map("processed_by_id")
+  rider         Rider?              @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  vendor        Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  transactions  WalletTransaction[]
+
+  @@index([payeeType, status])
+  @@map("payouts")
+}
+
+model BonusRule {
+  id               String       @id @default(cuid())
+  name             String
+  deliveriesTarget Int          @map("deliveries_target")
+  period           BonusPeriod
+  amountCents      Int          @map("amount_cents")
+  isActive         Boolean      @default(true) @map("is_active")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  awards           BonusAward[]
+
+  @@map("bonus_rules")
+}
+
+model BonusAward {
+  id          String    @id @default(cuid())
+  ruleId      String    @map("rule_id")
+  riderId     String    @map("rider_id")
+  periodKey   String    @map("period_key") // "2026-09-27" (daily) or "2026-W39" (weekly)
+  amountCents Int       @map("amount_cents")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  rule        BonusRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  rider       Rider     @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, riderId, periodKey])
+  @@map("bonus_awards")
+}
+
+// ─────────────────────────────── Orders ───────────────────────────────
+
+model Order {
+  id                 String        @id @default(cuid())
+  code               String        @unique // human-friendly, e.g. DS-7KQ2XM
+  type               OrderType     @default(DELIVERY)
+  status             OrderStatus
+  customerId         String        @map("customer_id")
+  vendorId           String?       @map("vendor_id")
+  riderId            String?       @map("rider_id")
+  zoneId             String?       @map("zone_id")
+  // Pickup (vendor location or parcel sender) — snapshot at order time
+  pickupLat          Float         @map("pickup_lat")
+  pickupLng          Float         @map("pickup_lng")
+  pickupAddress      String        @map("pickup_address")
+  pickupLandmark     String?       @map("pickup_landmark")
+  pickupContactName  String?       @map("pickup_contact_name")
+  pickupContactPhone String?       @map("pickup_contact_phone")
+  // Drop-off — snapshot at order time
+  dropoffLat         Float         @map("dropoff_lat")
+  dropoffLng         Float         @map("dropoff_lng")
+  dropoffAddress     String        @map("dropoff_address")
+  dropoffLandmark    String        @map("dropoff_landmark")
+  recipientName      String?       @map("recipient_name")
+  recipientPhone     String?       @map("recipient_phone")
+  parcelDescription  String?       @map("parcel_description")
+  parcelSize         ParcelSize?   @map("parcel_size")
+  distanceKm         Float         @map("distance_km")
+  // Money (USD cents)
+  subtotalCents      Int           @map("subtotal_cents")
+  deliveryFeeCents   Int           @map("delivery_fee_cents")
+  tipCents           Int           @default(0) @map("tip_cents")
+  totalCents         Int           @map("total_cents")
+  commissionRateBps  Int           @map("commission_rate_bps")
+  commissionCents    Int           @map("commission_cents")
+  vendorEarningCents Int           @map("vendor_earning_cents")
+  riderEarningCents  Int           @map("rider_earning_cents") // delivery pay, tips excluded
+  currency           Currency      @default(USD)
+  exchangeRate       Float         @map("exchange_rate") // ZWG per 1 USD at order time
+  paymentMethod      PaymentMethod @map("payment_method")
+  paymentStatus      PaymentStatus @default(PENDING) @map("payment_status")
+  notes              String?
+  prepMinutes        Int?          @map("prep_minutes")
+  estimatedReadyAt   DateTime?     @map("estimated_ready_at")
+  deliveryPin        String        @map("delivery_pin")
+  proofType          ProofType?    @map("proof_type")
+  proofPhotoUrl      String?       @map("proof_photo_url")
+  cancelReason       String?       @map("cancel_reason")
+  rejectReason       String?       @map("reject_reason")
+  placedAt           DateTime?     @map("placed_at")
+  acceptedAt         DateTime?     @map("accepted_at")
+  readyAt            DateTime?     @map("ready_at")
+  assignedAt         DateTime?     @map("assigned_at")
+  pickedUpAt         DateTime?     @map("picked_up_at")
+  onTheWayAt         DateTime?     @map("on_the_way_at")
+  deliveredAt        DateTime?     @map("delivered_at")
+  cancelledAt        DateTime?     @map("cancelled_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  vendor             Vendor?             @relation(fields: [vendorId], references: [id])
+  rider              Rider?              @relation(fields: [riderId], references: [id])
+  zone               Zone?               @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+  payments           Payment[]
+  events             OrderEvent[]
+  ratings            Rating[]
+  offers             DispatchOffer[]
+  messages           ChatMessage[]
+  chatReads          ChatRead[]
+  dispute            Dispute?
+  cashCollection     CashCollection?
+  refunds            Refund[]
+  walletTransactions WalletTransaction[]
+
+  @@index([status])
+  @@index([customerId, createdAt])
+  @@index([vendorId, createdAt])
+  @@index([riderId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String   @map("order_id")
+  productId      String?  @map("product_id")
+  name           String
+  unitPriceCents Int      @map("unit_price_cents")
+  quantity       Int
+  lineTotalCents Int      @map("line_total_cents")
+  notes          String?
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderEvent {
+  id        String       @id @default(cuid())
+  orderId   String       @map("order_id")
+  status    OrderStatus?
+  type      String // STATUS_CHANGED | RIDER_ASSIGNED | RIDER_UNASSIGNED | PAYMENT | NOTE
+  message   String?
+  actorId   String?      @map("actor_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model DispatchOffer {
+  id          String              @id @default(cuid())
+  orderId     String              @map("order_id")
+  riderId     String              @map("rider_id")
+  status      DispatchOfferStatus @default(OFFERED)
+  distanceKm  Float?              @map("distance_km") // rider → pickup
+  isManual    Boolean             @default(false) @map("is_manual")
+  expiresAt   DateTime            @map("expires_at")
+  respondedAt DateTime?           @map("responded_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rider       Rider               @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@index([status, expiresAt])
+  @@index([orderId])
+  @@index([riderId, status])
+  @@map("dispatch_offers")
+}
+
+model ChatMessage {
+  id        String    @id @default(cuid())
+  orderId   String    @map("order_id")
+  senderId  String    @map("sender_id")
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("chat_messages")
+}
+
+/// When each person last opened an order's chat (the customer, store and rider share one thread).
+model ChatRead {
+  orderId String   @map("order_id")
+  userId  String   @map("user_id")
+  readAt  DateTime @map("read_at")
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orderId, userId])
+  @@index([userId])
+  @@map("chat_reads")
+}
+
+// ─────────────────────────────── Payments ───────────────────────────────
+
+model Payment {
+  id              String         @id @default(cuid())
+  orderId         String         @map("order_id")
+  purpose         PaymentPurpose @default(ORDER)
+  method          PaymentMethod
+  status          PaymentStatus  @default(PENDING)
+  currency        Currency
+  amountCents     Int            @map("amount_cents") // in `currency` minor units
+  amountUsdCents  Int            @map("amount_usd_cents")
+  reference       String         @unique // merchant reference sent to Paynow
+  paynowReference String?        @map("paynow_reference")
+  pollUrl         String?        @map("poll_url")
+  redirectUrl     String?        @map("redirect_url")
+  instructions    String?
+  phone           String?
+  rawStatus       String?        @map("raw_status")
+  lastPolledAt    DateTime?      @map("last_polled_at")
+  paidAt          DateTime?      @map("paid_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds         Refund[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Refund {
+  id            String       @id @default(cuid())
+  orderId       String       @map("order_id")
+  paymentId     String?      @map("payment_id")
+  disputeId     String?      @map("dispute_id")
+  amountCents   Int          @map("amount_cents") // USD cents
+  method        String // ECOCASH | ONEMONEY | CARD | CASH | BANK
+  reference     String?
+  status        RefundStatus @default(PENDING)
+  notes         String?
+  processedById String?      @map("processed_by_id")
+  processedAt   DateTime?    @map("processed_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  order         Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment       Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  dispute       Dispute?     @relation(fields: [disputeId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("refunds")
+}
+
+model Dispute {
+  id           String        @id @default(cuid())
+  orderId      String        @unique @map("order_id")
+  raisedById   String        @map("raised_by_id")
+  reason       String
+  description  String
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  refundCents  Int?          @map("refund_cents")
+  resolvedById String?       @map("resolved_by_id")
+  resolvedAt   DateTime?     @map("resolved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  raisedBy     User          @relation("DisputeRaisedBy", fields: [raisedById], references: [id], onDelete: Cascade)
+  refunds      Refund[]
+
+  @@index([status])
+  @@map("disputes")
+}
+
+// ─────────────────────────── Ratings & notifications ───────────────────────────
+
+model Rating {
+  id        String       @id @default(cuid())
+  orderId   String       @map("order_id")
+  raterId   String       @map("rater_id")
+  target    RatingTarget
+  vendorId  String?      @map("vendor_id")
+  riderId   String?      @map("rider_id")
+  score     Int // 1..5
+  comment   String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rater     User         @relation(fields: [raterId], references: [id], onDelete: Cascade)
+  vendor    Vendor?      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  rider     Rider?       @relation(fields: [riderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, target])
+  @@index([vendorId])
+  @@index([riderId])
+  @@map("ratings")
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String              @map("user_id")
+  type      String
+  title     String
+  body      String
+  data      Json?
+  channel   NotificationChannel @default(IN_APP) // channel(s) actually delivered beyond in-app
+  readAt    DateTime?           @map("read_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// ─────────────────────────────── Settings ───────────────────────────────
+
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+// ─────────────────────────────── Uploads ───────────────────────────────
+
+/// Image bytes for hosts without a persistent disk (UPLOAD_STORAGE=database).
+/// `path` mirrors the disk layout: "public/<kind>/<file>" or "private/<ownerId>/<file>".
+model StoredFile {
+  path      String   @id
+  mimeType  String   @map("mime_type")
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("stored_files")
+}
+
+// ─────────────────────────────── Marketplace ───────────────────────────────
+// Anyone can sell: individuals and local vendors list items or services, chat with
+// buyers, take barter offers and run auctions. Separate from the delivery stores above.
+
+enum ListingKind {
+  ITEM
+  SERVICE
+}
+
+enum ListingCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  REMOVED
+}
+
+enum SaleType {
+  FIXED
+  AUCTION
+}
+
+enum BarterOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COUNTERED
+  WITHDRAWN
+}
+
+/// A seller's storefront. Created the first time someone sells.
+model SellerProfile {
+  id            String         @id @default(cuid())
+  userId        String         @unique @map("user_id")
+  displayName   String         @map("display_name")
+  bio           String?
+  area          String // suburb or town
+  city          String
+  lat           Float // default location for new listings
+  lng           Float
+  whatsappPhone String?        @map("whatsapp_phone") // E.164; the account phone when empty
+  showWhatsapp  Boolean        @default(true) @map("show_whatsapp")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings      Listing[]
+  followers     SellerFollow[]
+
+  @@map("seller_profiles")
+}
+
+model Listing {
+  id              String            @id @default(cuid())
+  sellerId        String            @map("seller_id")
+  kind            ListingKind       @default(ITEM)
+  title           String
+  description     String
+  category        String
+  condition       ListingCondition?
+  /// Fixed price, or the starting price of an auction (US cents).
+  priceCents      Int               @map("price_cents")
+  saleType        SaleType          @default(FIXED) @map("sale_type")
+  openToBarter    Boolean           @default(false) @map("open_to_barter")
+  status          ListingStatus     @default(ACTIVE)
+  area            String
+  city            String
+  lat             Float
+  lng             Float
+  auctionEndsAt   DateTime?         @map("auction_ends_at")
+  currentBidCents Int?              @map("current_bid_cents")
+  bidCount        Int               @default(0) @map("bid_count")
+  highestBidderId String?           @map("highest_bidder_id")
+  auctionClosedAt DateTime?         @map("auction_closed_at")
+  soldToId        String?           @map("sold_to_id")
+  soldAt          DateTime?         @map("sold_at")
+  /// Lower-case title, description, category and place, for keyword search.
+  searchText      String            @map("search_text")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  seller          SellerProfile     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  highestBidder   User?             @relation("ListingHighestBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+  soldTo          User?             @relation("ListingSoldTo", fields: [soldToId], references: [id], onDelete: SetNull)
+  photos          ListingPhoto[]
+  threads         ListingThread[]
+  bids            Bid[]
+  offersReceived  BarterOffer[]
+  offeredIn       BarterOfferItem[]
+
+  @@index([status, category])
+  @@index([status, createdAt])
+  @@index([sellerId, status])
+  @@index([saleType, status, auctionEndsAt])
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String  @id @default(cuid())
+  listingId String  @map("listing_id")
+  url       String
+  thumbUrl  String? @map("thumb_url")
+  sortOrder Int     @default(0) @map("sort_order")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
+  @@map("listing_photos")
+}
+
+/// A buyer's conversation with the seller about one listing.
+model ListingThread {
+  id            String           @id @default(cuid())
+  listingId     String           @map("listing_id")
+  buyerId       String           @map("buyer_id")
+  sellerUserId  String           @map("seller_user_id")
+  lastMessageAt DateTime         @default(now()) @map("last_message_at")
+  buyerReadAt   DateTime?        @map("buyer_read_at")
+  sellerReadAt  DateTime?        @map("seller_read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  listing       Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer         User             @relation("ThreadBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerUser    User             @relation("ThreadSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  messages      ListingMessage[]
+
+  @@unique([listingId, buyerId])
+  @@index([buyerId, lastMessageAt])
+  @@index([sellerUserId, lastMessageAt])
+  @@map("listing_threads")
+}
+
+model ListingMessage {
+  id        String        @id @default(cuid())
+  threadId  String        @map("thread_id")
+  senderId  String        @map("sender_id")
+  body      String
+  createdAt DateTime      @default(now()) @map("created_at")
+  thread    ListingThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([senderId, createdAt])
+  @@map("listing_messages")
+}
+
+/// Items (and optional cash from the buyer) offered in exchange for a listing. A counter
+/// offer is a new row pointing at the offer it answers.
+model BarterOffer {
+  id           String            @id @default(cuid())
+  listingId    String            @map("listing_id")
+  buyerId      String            @map("buyer_id")
+  sellerUserId String            @map("seller_user_id")
+  createdById  String            @map("created_by_id")
+  /// Cash the buyer adds on top of the items (US cents).
+  cashCents    Int               @default(0) @map("cash_cents")
+  message      String?
+  status       BarterOfferStatus @default(PENDING)
+  parentId     String?           @map("parent_id")
+  respondedAt  DateTime?         @map("responded_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  listing      Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer        User              @relation("OfferBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerUser   User              @relation("OfferSeller", fields: [sellerUserId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("OfferCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  parent       BarterOffer?      @relation("OfferCounters", fields: [parentId], references: [id], onDelete: SetNull)
+  counters     BarterOffer[]     @relation("OfferCounters")
+  items        BarterOfferItem[]
+
+  @@index([listingId, status])
+  @@index([buyerId, createdAt])
+  @@index([sellerUserId, createdAt])
+  @@index([createdById, createdAt])
+  @@map("barter_offers")
+}
+
+model BarterOfferItem {
+  offerId   String      @map("offer_id")
+  listingId String      @map("listing_id")
+  offer     BarterOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  listing   Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([offerId, listingId])
+  @@index([listingId])
+  @@map("barter_offer_items")
+}
+
+model Bid {
+  id          String   @id @default(cuid())
+  listingId   String   @map("listing_id")
+  bidderId    String   @map("bidder_id")
+  amountCents Int      @map("amount_cents")
+  createdAt   DateTime @default(now()) @map("created_at")
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder      User     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([bidderId, createdAt])
+  @@map("bids")
+}
+
+model SellerFollow {
+  followerId String        @map("follower_id")
+  sellerId   String        @map("seller_id")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  follower   User          @relation(fields: [followerId], references: [id], onDelete: Cascade)
+  seller     SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, sellerId])
+  @@index([sellerId])
+  @@map("seller_follows")
+}
+
+/// A search someone wants alerts for: new listings that match, near where they saved it.
+model SavedSearch {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  query          String
+  /// Interpreted filters (category, keywords, prices, …) used to match new listings.
+  filters        Json
+  lat            Float?
+  lng            Float?
+  radiusKm       Float     @default(15) @map("radius_km")
+  lastNotifiedAt DateTime? @map("last_notified_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
+}

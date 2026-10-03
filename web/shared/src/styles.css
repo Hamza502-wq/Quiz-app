@@ -1,0 +1,201 @@
+/* Map tiles and controls for the OpenStreetMap location picker. */
+@import 'leaflet/dist/leaflet.css';
+
+/* DoorStep Zimbabwe design tokens (Tailwind v4 theme). Imported by each dashboard's globals.css. */
+@theme {
+  --color-brand: #ff7a00;
+  --color-brand-dark: #e56d00;
+  --color-brand-light: #fff1e5;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #4a4a4a;
+  --color-muted: #7a7a7a;
+  --color-line: #ececec;
+  --color-surface: #ffffff;
+  --color-canvas: #f7f7f8;
+  --color-alert: #e01e1e;
+  --color-alert-light: #fde8e8;
+  --color-flag-green: #319b42;
+  --color-flag-yellow: #ffd200;
+  --color-flag-red: #e01e1e;
+  --color-success: #1f9d55;
+  --color-success-light: #e6f6ec;
+  --color-warning: #b7791f;
+  --color-warning-light: #fdf4e3;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 24px rgb(0 0 0 / 0.05);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* ───────────── Opening animation (see splash.tsx) ───────────── */
+.ds-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #ffffff;
+  font-family: var(--font-sans);
+  animation: ds-splash-out 0.4s ease-in 1.65s forwards;
+}
+html[data-splash='done'] .ds-splash {
+  display: none;
+}
+.ds-splash-stage {
+  position: relative;
+  width: 264px;
+  height: 124px;
+}
+.ds-splash-house {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  width: 96px;
+  height: auto;
+  animation: ds-splash-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+/* The scooter travels on the wrapper (translate) and bumps along on the image (transform). */
+.ds-splash-ride {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  animation: ds-splash-ride 1.05s cubic-bezier(0.25, 0.75, 0.35, 1) 0.1s both;
+}
+.ds-splash-scooter {
+  display: block;
+  width: 150px;
+  height: auto;
+  transform-origin: 70% 100%;
+  animation: ds-splash-bump 0.16s ease-in-out 0.1s 6 alternate;
+}
+.ds-splash-name {
+  margin: 18px 0 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1a1a1a;
+  animation: ds-splash-rise 0.4s ease-out 0.95s both;
+}
+.ds-splash-name span {
+  color: var(--color-brand);
+}
+.ds-splash-app {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #4a4a4a;
+  animation: ds-splash-rise 0.4s ease-out 1.05s both;
+}
+.ds-splash-credit {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  margin: 0;
+  font-size: 12px;
+  color: #7a7a7a;
+  animation: ds-splash-rise 0.4s ease-out 1.1s both;
+}
+@keyframes ds-splash-ride {
+  from {
+    translate: -100vw 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes ds-splash-bump {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-3px) rotate(-1.5deg);
+  }
+}
+@keyframes ds-splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ds-splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes ds-splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-splash {
+    display: none;
+  }
+}
+
+/* ───────────── Skeleton loading (see Skeleton in ui.tsx) ───────────── */
+.ds-skeleton {
+  background: linear-gradient(90deg, #eeeef0 0%, #f7f7f8 40%, #eeeef0 80%) 0 0 / 300% 100%;
+  animation: ds-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes ds-skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton {
+    animation: none;
+  }
+}
+
+/* OpenStreetMap picker: the pin is an inline SVG, without Leaflet's default icon box. */
+.ds-map-pin {
+  background: transparent;
+  border: 0;
+}
+.ds-osm-map {
+  font: inherit;
+}

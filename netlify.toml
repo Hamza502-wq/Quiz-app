@@ -1,0 +1,69 @@
+# Netlify: the whole DoorStep platform on one site (see scripts/netlify-build.sh).
+#   /  customer website · /vendor/ shop dashboard · /admin/ admin panel · /rider/ rider app
+#   /api/*  the DoorStep API on Netlify Functions, with a once-a-minute "jobs" function
+#
+# Required in Netlify → Site configuration → Environment variables:
+#   DATABASE_URL   PostgreSQL connection string (e.g. Supabase, transaction pooler)
+# Optional:
+#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY   Google Maps (location picker, live map, rider navigation)
+#   PAYNOW_* / TWILIO_* / FCM_*       real payments, SMS and push (see backend/.env.example)
+#   ANTHROPIC_API_KEY                 DoorStep Market AI search (a built-in English/Shona parser is used without it)
+# Payments are simulated and accounts use passwords until those are set.
+[build]
+  command = "bash scripts/netlify-build.sh"
+  publish = "site"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # The site is plain static files; Netlify's Next.js runtime isn't used.
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+
+[functions]
+  directory = "backend/netlify/functions"
+  node_bundler = "esbuild"
+  # Native/engine packages are copied as-is instead of bundled.
+  external_node_modules = ["@prisma/client", "sharp"]
+  included_files = ["backend/node_modules/.prisma/client/**", "backend/prisma/schema.prisma"]
+
+# Pages are revalidated on every visit; content-hashed build files are cached for a year.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/vendor/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/admin/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/vendor/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/admin/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/rider/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

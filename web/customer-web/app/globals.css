@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@doorstep/web-shared/styles.css';
+
+/* Scan the shared component library for Tailwind classes. */
+@source '../../shared/src';

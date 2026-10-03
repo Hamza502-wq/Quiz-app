@@ -1,0 +1,131 @@
+# DoorStep Zimbabwe — local stack: PostgreSQL, API, customer website, vendor dashboard, admin panel.
+#
+#   cp .env.example .env        # then set the secrets
+#   docker compose up --build -d
+#   docker compose run --rm seed   # sample data (safe to re-run)
+#
+# API: http://localhost:4000 (docs at /api/docs) · Website: http://localhost:3002 · Vendor: http://localhost:3000 · Admin: http://localhost:3001
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doorstep
+      POSTGRES_PASSWORD: doorstep
+      POSTGRES_DB: doorstep
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doorstep -d doorstep"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      # development enables OTP_DEV_ECHO / PAYMENTS_MOCK below; use production for real deployments.
+      NODE_ENV: ${API_NODE_ENV:-development}
+      PORT: 4000
+      DATABASE_URL: postgresql://doorstep:doorstep@postgres:5432/doorstep?schema=public
+      PUBLIC_BASE_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
+      OTP_SECRET: ${OTP_SECRET:?Set OTP_SECRET in .env}
+      OTP_DEV_ECHO: ${OTP_DEV_ECHO:-true}
+      PAYMENTS_MOCK: ${PAYMENTS_MOCK:-true}
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_SMS_FROM: ${TWILIO_SMS_FROM:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+      FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
+      PAYNOW_USD_INTEGRATION_ID: ${PAYNOW_USD_INTEGRATION_ID:-}
+      PAYNOW_USD_INTEGRATION_KEY: ${PAYNOW_USD_INTEGRATION_KEY:-}
+      PAYNOW_ZWG_INTEGRATION_ID: ${PAYNOW_ZWG_INTEGRATION_ID:-}
+      PAYNOW_ZWG_INTEGRATION_KEY: ${PAYNOW_ZWG_INTEGRATION_KEY:-}
+      PAYNOW_AUTH_EMAIL: ${PAYNOW_AUTH_EMAIL:-}
+      GOOGLE_MAPS_SERVER_KEY: ${GOOGLE_MAPS_SERVER_KEY:-}
+      SEED_ADMIN_PHONE: ${SEED_ADMIN_PHONE:-+263770000001}
+    volumes:
+      - uploads:/app/uploads
+
+  # One-off sample data: docker compose run --rm seed
+  # Uses the API's build stage, which has the dev tools the seed script needs.
+  seed:
+    build:
+      context: ./backend
+      target: build
+    profiles: ["seed"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://doorstep:doorstep@postgres:5432/doorstep?schema=public
+      SEED_ADMIN_PHONE: ${SEED_ADMIN_PHONE:-+263770000001}
+    command: ["npx", "prisma", "db", "seed"]
+
+  vendor:
+    build:
+      context: ./web
+      args:
+        APP: vendor-dashboard
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${GOOGLE_MAPS_MAP_ID:-DEMO_MAP_ID}
+        NEXT_PUBLIC_CUSTOMER_URL: ${PUBLIC_CUSTOMER_URL:-http://localhost:3002/}
+        NEXT_PUBLIC_VENDOR_URL: ${PUBLIC_VENDOR_URL:-http://localhost:3000/}
+        NEXT_PUBLIC_RIDER_URL: none
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  admin:
+    build:
+      context: ./web
+      args:
+        APP: admin-panel
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${GOOGLE_MAPS_MAP_ID:-DEMO_MAP_ID}
+        NEXT_PUBLIC_CUSTOMER_URL: ${PUBLIC_CUSTOMER_URL:-http://localhost:3002/}
+        NEXT_PUBLIC_VENDOR_URL: ${PUBLIC_VENDOR_URL:-http://localhost:3000/}
+        NEXT_PUBLIC_RIDER_URL: none
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3001:3000"
+
+  customer:
+    build:
+      context: ./web
+      args:
+        APP: customer-web
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${GOOGLE_MAPS_MAP_ID:-DEMO_MAP_ID}
+        NEXT_PUBLIC_CUSTOMER_URL: ${PUBLIC_CUSTOMER_URL:-http://localhost:3002/}
+        NEXT_PUBLIC_VENDOR_URL: ${PUBLIC_VENDOR_URL:-http://localhost:3000/}
+        NEXT_PUBLIC_RIDER_URL: none
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3002:3000"
+
+volumes:
+  pgdata:
+  uploads:
