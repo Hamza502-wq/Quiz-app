@@ -24,6 +24,7 @@ import { CategoryIcon } from '@/components/StoreVisuals';
 import { DeliverToModal } from '@/components/DeliverToModal';
 import { Photo } from '@/components/Photo';
 import { PHOTOS } from '@/lib/photos';
+import { DEMO_MODE } from '@/lib/demo/mode';
 
 const PAGE_SIZE = 12;
 type Sort = 'recommended' | 'rating' | 'distance' | 'deliveryFee';
@@ -177,6 +178,14 @@ function Home() {
           >
             <Package className="h-5 w-5 text-brand" aria-hidden /> Send a parcel
           </Link>
+          {DEMO_MODE ? null : (
+            <Link
+              href="/market"
+              className="flex shrink-0 items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3 text-sm font-semibold shadow-card hover:border-brand"
+            >
+              <Store className="h-5 w-5 text-brand" aria-hidden /> Market: buy, sell &amp; swap
+            </Link>
+          )}
         </div>
 
         {!q && !category ? (

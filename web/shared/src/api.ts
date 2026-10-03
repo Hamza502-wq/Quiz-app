@@ -153,7 +153,7 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
   return (await res.json()) as T;
 }
 
-export type UploadKind = 'product' | 'vendor' | 'avatar' | 'document' | 'proof';
+export type UploadKind = 'product' | 'vendor' | 'avatar' | 'listing' | 'document' | 'proof';
 
 export interface UploadResult {
   url: string;

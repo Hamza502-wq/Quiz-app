@@ -7,6 +7,7 @@
 # Optional:
 #   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY   Google Maps (location picker, live map, rider navigation)
 #   PAYNOW_* / TWILIO_* / FCM_*       real payments, SMS and push (see backend/.env.example)
+#   ANTHROPIC_API_KEY                 DoorStep Market AI search (a built-in English/Shona parser is used without it)
 # Payments are simulated and accounts use passwords until those are set.
 [build]
   command = "bash scripts/netlify-build.sh"

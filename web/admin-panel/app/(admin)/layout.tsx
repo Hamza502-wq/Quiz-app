@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { BarChart3, Bike, ClipboardList, Map, Scale, Settings, Store, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bike, ClipboardList, Map, Scale, Settings, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
 import { AppShell, AuthGate, type NavItem } from '@doorstep/web-shared';
 
 const NAV: NavItem[] = [
@@ -11,6 +11,7 @@ const NAV: NavItem[] = [
   { href: '/vendors', label: 'Vendors', icon: Store },
   { href: '/riders', label: 'Riders', icon: Bike },
   { href: '/users', label: 'Customers & users', icon: Users },
+  { href: '/market', label: 'Marketplace', icon: ShoppingBag },
   { href: '/disputes', label: 'Disputes & refunds', icon: Scale },
   { href: '/payouts', label: 'Payouts', icon: Wallet },
   { href: '/settings', label: 'Settings & zones', icon: Settings },

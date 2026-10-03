@@ -65,7 +65,8 @@ const schema = z.object({
   // Marketplace AI search: with a key, everyday phrases are interpreted by Claude; without
   // one (or if the call fails) a built-in English/Shona parser is used.
   ANTHROPIC_API_KEY: optionalString,
-  MARKET_AI_MODEL: z.string().default('claude-opus-5-5'),
+  // An empty value (e.g. a blank line copied from .env.example) means the default model.
+  MARKET_AI_MODEL: optionalString.transform((v) => v ?? 'claude-opus-5-5'),
 
   // "database" keeps images in Postgres, for hosts without a persistent disk (e.g. Netlify Functions)
   UPLOAD_STORAGE: z.enum(['disk', 'database']).default('disk'),

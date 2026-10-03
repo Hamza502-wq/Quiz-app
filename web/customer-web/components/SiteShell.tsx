@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ClipboardList, MapPin, Package, ShoppingBag } from 'lucide-react';
+import { ChevronDown, ClipboardList, MapPin, Package, ShoppingBag, Store } from 'lucide-react';
 import { Avatar, FlagStripe, InstallAppButton, MADE_BY, appLinks, cn, useAuth } from '@doorstep/web-shared';
 import { useCart } from '@/lib/cart';
 import { useDeliverTo } from '@/lib/location';
@@ -43,6 +43,8 @@ function SiteHeader() {
   const navLink = (href: string, label: string, Icon: typeof Package) => (
     <Link
       href={href}
+      // The label is hidden on phones, so name the link for screen readers.
+      aria-label={label}
       className={cn(
         'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors',
         pathname.startsWith(href) || (href === '/orders' && pathname === '/order')
@@ -78,6 +80,7 @@ function SiteHeader() {
         </button>
 
         <nav className="ml-auto flex items-center gap-0.5 sm:gap-1">
+          {DEMO_MODE ? null : navLink('/market', 'Market', Store)}
           {navLink('/parcel', 'Send a parcel', Package)}
           {user ? navLink('/orders', 'Orders', ClipboardList) : null}
           <Link
@@ -146,6 +149,13 @@ function SiteFooter() {
                 Send a parcel
               </Link>
             </li>
+            {DEMO_MODE ? null : (
+              <li>
+                <Link href="/market" className="hover:text-white">
+                  DoorStep Market: buy, sell &amp; swap
+                </Link>
+              </li>
+            )}
             <li>
               <Link href="/orders" className="hover:text-white">
                 Track an order

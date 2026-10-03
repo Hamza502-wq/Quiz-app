@@ -156,7 +156,8 @@ function OsmMap({ value, recenterTo, onPick, height }: { value: LatLng | null; r
     if (value) placeMarker(value);
   }, [value, placeMarker]);
   useEffect(() => {
-    if (recenterTo) map.current?.setView([recenterTo.lat, recenterTo.lng], 16);
+    // No zoom animation: a form that closes mid-animation would otherwise crash Leaflet.
+    if (recenterTo) map.current?.setView([recenterTo.lat, recenterTo.lng], 16, { animate: false });
   }, [recenterTo]);
 
   return <div ref={container} className="ds-osm-map h-full w-full" style={{ height }} role="application" aria-label="Map: tap to choose the location" />;
